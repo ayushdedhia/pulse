@@ -1,0 +1,463 @@
+/* Import Inter font - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark Mode (Default) - Exact WhatsApp colors */
+  --bg-primary: #111B21;
+  --bg-secondary: #202C33;
+  --bg-tertiary: #2A3942;
+  --bg-hover: #2A3942;
+  --bg-chat: #0B141A;
+  --bg-chat-pattern: rgba(11, 20, 26, 0.95);
+  --accent: #00A884;
+  --accent-hover: #06CF9C;
+  --accent-dark: #025144;
+  --text-primary: #E9EDEF;
+  --text-secondary: #8696A0;
+  --text-muted: #667781;
+  --bubble-outgoing: #005C4B;
+  --bubble-outgoing-hover: #025144;
+  --bubble-incoming: #202C33;
+  --bubble-incoming-hover: #1D282F;
+  --border: #2F3B43;
+  --border-light: #222D34;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --dropdown-shadow: rgba(0, 0, 0, 0.4);
+  --tick-delivered: #8696A0;
+  --tick-read: #53BDEB;
+  --unread-badge: #00A884;
+  --online-indicator: #31A24C;
+  --typing-dot: #8696A0;
+}
+
+.light {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F0F2F5;
+  --bg-tertiary: #E9EDEF;
+  --bg-hover: #F5F6F6;
+  --bg-chat: #EFEAE2;
+  --bg-chat-pattern: rgba(239, 234, 226, 0.95);
+  --accent: #00A884;
+  --accent-hover: #008069;
+  --accent-dark: #008069;
+  --text-primary: #111B21;
+  --text-secondary: #54656F;
+  --text-muted: #667781;
+  --bubble-outgoing: #D9FDD3;
+  --bubble-outgoing-hover: #C7F8BE;
+  --bubble-incoming: #FFFFFF;
+  --bubble-incoming-hover: #F5F5F5;
+  --border: #E9EDEF;
+  --border-light: #F0F2F5;
+  --shadow: rgba(0, 0, 0, 0.08);
+  --dropdown-shadow: rgba(0, 0, 0, 0.15);
+  --tick-delivered: #667781;
+  --tick-read: #53BDEB;
+  --unread-badge: #25D366;
+  --online-indicator: #31A24C;
+  --typing-dot: #667781;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Selection */
+::selection {
+  background-color: var(--accent);
+  color: white;
+}
+
+/* Custom scrollbar - WhatsApp style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(134, 150, 160, 0.4);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 150, 160, 0.6);
+}
+
+/* Scrollbar only on hover */
+.scrollbar-hidden::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.scrollbar-hidden:hover::-webkit-scrollbar-thumb {
+  background: rgba(134, 150, 160, 0.4);
+}
+
+/* Focus styles */
+input:focus,
+textarea:focus,
+button:focus-visible {
+  outline: none;
+}
+
+button:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 8px;
+}
+
+/* Message input textarea */
+textarea {
+  resize: none;
+}
+
+/* ==================== ANIMATIONS ==================== */
+
+/* Typing indicator dots */
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+.typing-dot {
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Slide up animation for messages */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.2s ease-out;
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s ease-out;
+}
+
+/* Slide in from right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.25s ease-out;
+}
+
+/* Scale in animation */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.15s ease-out;
+}
+
+/* Pop animation for send button */
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-pop {
+  animation: pop 0.15s ease-out;
+}
+
+/* Pulse for unread badge */
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.animate-badge-pulse {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 0px,
+    var(--bg-tertiary) 40px,
+    var(--bg-secondary) 80px
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ==================== WHATSAPP CHAT BACKGROUND ==================== */
+
+.chat-bg-pattern {
+  background-color: var(--bg-chat);
+  position: relative;
+}
+
+.chat-bg-pattern::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg width='412' height='412' viewBox='0 0 412 412' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3Ccircle cx='60' cy='30' r='1.5'/%3E%3Ccircle cx='30' cy='70' r='2'/%3E%3Ccircle cx='90' cy='50' r='1'/%3E%3Ccircle cx='140' cy='20' r='1.5'/%3E%3Ccircle cx='110' cy='80' r='2'/%3E%3Ccircle cx='170' cy='60' r='1'/%3E%3Ccircle cx='200' cy='30' r='2'/%3E%3Ccircle cx='250' cy='70' r='1.5'/%3E%3Ccircle cx='220' cy='100' r='1'/%3E%3Ccircle cx='280' cy='40' r='2'/%3E%3Ccircle cx='320' cy='80' r='1.5'/%3E%3Ccircle cx='350' cy='20' r='1'/%3E%3Ccircle cx='380' cy='60' r='2'/%3E%3Ccircle cx='40' cy='130' r='1.5'/%3E%3Ccircle cx='80' cy='160' r='2'/%3E%3Ccircle cx='120' cy='140' r='1'/%3E%3Ccircle cx='160' cy='180' r='1.5'/%3E%3Ccircle cx='200' cy='150' r='2'/%3E%3Ccircle cx='240' cy='190' r='1'/%3E%3Ccircle cx='280' cy='160' r='1.5'/%3E%3Ccircle cx='320' cy='200' r='2'/%3E%3Ccircle cx='360' cy='170' r='1'/%3E%3Ccircle cx='400' cy='140' r='1.5'/%3E%3Ccircle cx='20' cy='220' r='2'/%3E%3Ccircle cx='60' cy='260' r='1'/%3E%3Ccircle cx='100' cy='240' r='1.5'/%3E%3Ccircle cx='140' cy='280' r='2'/%3E%3Ccircle cx='180' cy='250' r='1'/%3E%3Ccircle cx='220' cy='290' r='1.5'/%3E%3Ccircle cx='260' cy='260' r='2'/%3E%3Ccircle cx='300' cy='300' r='1'/%3E%3Ccircle cx='340' cy='270' r='1.5'/%3E%3Ccircle cx='380' cy='240' r='2'/%3E%3Ccircle cx='50' cy='340' r='1'/%3E%3Ccircle cx='90' cy='370' r='1.5'/%3E%3Ccircle cx='130' cy='350' r='2'/%3E%3Ccircle cx='170' cy='390' r='1'/%3E%3Ccircle cx='210' cy='360' r='1.5'/%3E%3Ccircle cx='250' cy='400' r='2'/%3E%3Ccircle cx='290' cy='370' r='1'/%3E%3Ccircle cx='330' cy='340' r='1.5'/%3E%3Ccircle cx='370' cy='380' r='2'/%3E%3Cpath d='M15 95 L25 85 L20 95 L25 105 Z' /%3E%3Cpath d='M95 15 L105 5 L100 15 L105 25 Z' /%3E%3Cpath d='M175 115 L185 105 L180 115 L185 125 Z' /%3E%3Cpath d='M255 215 L265 205 L260 215 L265 225 Z' /%3E%3Cpath d='M335 315 L345 305 L340 315 L345 325 Z' /%3E%3Crect x='45' y='195' width='8' height='8' rx='1' /%3E%3Crect x='145' y='295' width='8' height='8' rx='1' /%3E%3Crect x='245' y='95' width='8' height='8' rx='1' /%3E%3Crect x='345' y='395' width='8' height='8' rx='1' /%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.light .chat-bg-pattern::before {
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg width='412' height='412' viewBox='0 0 412 412' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23DAD3C7' fill-opacity='1'%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3Ccircle cx='60' cy='30' r='1.5'/%3E%3Ccircle cx='30' cy='70' r='2'/%3E%3Ccircle cx='90' cy='50' r='1'/%3E%3Ccircle cx='140' cy='20' r='1.5'/%3E%3Ccircle cx='110' cy='80' r='2'/%3E%3Ccircle cx='170' cy='60' r='1'/%3E%3Ccircle cx='200' cy='30' r='2'/%3E%3Ccircle cx='250' cy='70' r='1.5'/%3E%3Ccircle cx='220' cy='100' r='1'/%3E%3Ccircle cx='280' cy='40' r='2'/%3E%3Ccircle cx='320' cy='80' r='1.5'/%3E%3Ccircle cx='350' cy='20' r='1'/%3E%3Ccircle cx='380' cy='60' r='2'/%3E%3Ccircle cx='40' cy='130' r='1.5'/%3E%3Ccircle cx='80' cy='160' r='2'/%3E%3Ccircle cx='120' cy='140' r='1'/%3E%3Ccircle cx='160' cy='180' r='1.5'/%3E%3Ccircle cx='200' cy='150' r='2'/%3E%3Ccircle cx='240' cy='190' r='1'/%3E%3Ccircle cx='280' cy='160' r='1.5'/%3E%3Ccircle cx='320' cy='200' r='2'/%3E%3Ccircle cx='360' cy='170' r='1'/%3E%3Ccircle cx='400' cy='140' r='1.5'/%3E%3Ccircle cx='20' cy='220' r='2'/%3E%3Ccircle cx='60' cy='260' r='1'/%3E%3Ccircle cx='100' cy='240' r='1.5'/%3E%3Ccircle cx='140' cy='280' r='2'/%3E%3Ccircle cx='180' cy='250' r='1'/%3E%3Ccircle cx='220' cy='290' r='1.5'/%3E%3Ccircle cx='260' cy='260' r='2'/%3E%3Ccircle cx='300' cy='300' r='1'/%3E%3Ccircle cx='340' cy='270' r='1.5'/%3E%3Ccircle cx='380' cy='240' r='2'/%3E%3Ccircle cx='50' cy='340' r='1'/%3E%3Ccircle cx='90' cy='370' r='1.5'/%3E%3Ccircle cx='130' cy='350' r='2'/%3E%3Ccircle cx='170' cy='390' r='1'/%3E%3Ccircle cx='210' cy='360' r='1.5'/%3E%3Ccircle cx='250' cy='400' r='2'/%3E%3Ccircle cx='290' cy='370' r='1'/%3E%3Ccircle cx='330' cy='340' r='1.5'/%3E%3Ccircle cx='370' cy='380' r='2'/%3E%3Cpath d='M15 95 L25 85 L20 95 L25 105 Z' /%3E%3Cpath d='M95 15 L105 5 L100 15 L105 25 Z' /%3E%3Cpath d='M175 115 L185 105 L180 115 L185 125 Z' /%3E%3Cpath d='M255 215 L265 205 L260 215 L265 225 Z' /%3E%3Cpath d='M335 315 L345 305 L340 315 L345 325 Z' /%3E%3Crect x='45' y='195' width='8' height='8' rx='1' /%3E%3Crect x='145' y='295' width='8' height='8' rx='1' /%3E%3Crect x='245' y='95' width='8' height='8' rx='1' /%3E%3Crect x='345' y='395' width='8' height='8' rx='1' /%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ==================== TRANSITIONS ==================== */
+
+/* Global smooth transitions */
+.transition-theme {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* Button hover transitions */
+.btn-hover {
+  transition: all 0.15s ease;
+}
+
+.btn-hover:hover {
+  transform: scale(1.05);
+}
+
+.btn-hover:active {
+  transform: scale(0.95);
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+
+/* Hide scrollbar but keep functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Text ellipsis */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Glass effect */
+.glass {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Ripple effect base */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, var(--text-secondary) 10%, transparent 10.01%);
+  transform: scale(10);
+  opacity: 0;
+  transition: transform 0.5s, opacity 0.5s;
+}
+
+.ripple:active::after {
+  transform: scale(0);
+  opacity: 0.2;
+  transition: 0s;
+}
+
+/* Message tail styles */
+.bubble-tail-out {
+  position: relative;
+}
+
+.bubble-tail-out::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 8px;
+  height: 13px;
+  background: var(--bubble-outgoing);
+  clip-path: polygon(0 0, 0 100%, 100% 0);
+}
+
+.bubble-tail-in {
+  position: relative;
+}
+
+.bubble-tail-in::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 8px;
+  height: 13px;
+  background: var(--bubble-incoming);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+
+.light .bubble-tail-in::before {
+  background: var(--bubble-incoming);
+  box-shadow: -1px 0 0 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Online indicator pulse */
+@keyframes onlinePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(49, 162, 76, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(49, 162, 76, 0);
+  }
+}
+
+.online-pulse {
+  animation: onlinePulse 2s ease-in-out infinite;
+}
+
+/* Input focus ring */
+.input-focus-ring {
+  transition: box-shadow 0.2s ease;
+}
+
+.input-focus-ring:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+/* Active press effect */
+.active-press:active {
+  transform: scale(0.98);
+}
