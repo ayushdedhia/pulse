@@ -1,13 +1,13 @@
 import { ArrowLeft, Camera, Check, Copy, Pencil } from "lucide-react";
 import { useState } from "react";
 
-import { useChatStore } from "../../store/chatStore";
+import { useUserStore } from "../../store/userStore";
 import { useUIStore } from "../../store/uiStore";
 import { Avatar } from "../common/Avatar";
 
 export function ProfileModal() {
   const { setShowProfile } = useUIStore();
-  const { currentUser } = useChatStore();
+  const { currentUser } = useUserStore();
   const [editingName, setEditingName] = useState(false);
   const [editingAbout, setEditingAbout] = useState(false);
   const [name, setName] = useState(currentUser?.name || "");

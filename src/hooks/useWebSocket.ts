@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useChatStore } from "../store/chatStore";
+import { useMessageStore } from "../store/messageStore";
+import { useUserStore } from "../store/userStore";
 
 export interface WsMessage {
   type: "message" | "typing" | "presence" | "read_receipt" | "connect" | "error";
@@ -23,7 +24,8 @@ export function useWebSocket() {
   const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
   const reconnectTimeoutRef = useRef<number>();
 
-  const { currentUser, chats, setActiveChat, loadMessages } = useChatStore();
+  const { currentUser } = useUserStore();
+  const { loadMessages } = useMessageStore();
 
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;

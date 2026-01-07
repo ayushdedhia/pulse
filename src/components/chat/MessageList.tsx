@@ -2,11 +2,15 @@ import { format, isSameDay } from "date-fns";
 import { useEffect, useRef } from "react";
 
 import { useChatStore } from "../../store/chatStore";
+import { useMessageStore } from "../../store/messageStore";
+import { useUserStore } from "../../store/userStore";
 import { DateDivider } from "./DateDivider";
 import { MessageBubble } from "./MessageBubble";
 
 export function MessageList() {
-  const { activeChat, messages, currentUser } = useChatStore();
+  const { activeChat } = useChatStore();
+  const { messages } = useMessageStore();
+  const { currentUser } = useUserStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = activeChat ? messages[activeChat.id] || [] : [];

@@ -7,12 +7,12 @@ import {
   Sun,
 } from "lucide-react";
 import { useUIStore } from "../../store/uiStore";
-import { useChatStore } from "../../store/chatStore";
+import { useUserStore } from "../../store/userStore";
 import { Avatar } from "../common/Avatar";
 
 export function Sidebar() {
   const { theme, toggleTheme, setShowProfile, setShowNewChat } = useUIStore();
-  const { currentUser } = useChatStore();
+  const { currentUser } = useUserStore();
 
   return (
     <div className="flex flex-col w-[72px] min-w-[72px] bg-[var(--bg-secondary)] border-r border-[var(--border-light)] transition-theme">

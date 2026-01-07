@@ -9,6 +9,8 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useChatStore } from "../store/chatStore";
+import { useMessageStore } from "../store/messageStore";
+import { useUserStore } from "../store/userStore";
 
 interface WsMessage {
   type: string;
@@ -36,7 +38,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<number>();
 
-  const { currentUser, loadMessages, loadChats } = useChatStore();
+  const { currentUser } = useUserStore();
+  const { loadChats } = useChatStore();
+  const { loadMessages } = useMessageStore();
 
   const handleMessage = useCallback(
     async (data: WsMessage) => {

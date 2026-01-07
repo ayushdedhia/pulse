@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Smile, Paperclip, Mic, Send, Plus, Camera, Image, FileText } from "lucide-react";
+import { Smile, Mic, Send, Plus, Camera, Image, FileText } from "lucide-react";
 import { useChatStore } from "../../store/chatStore";
+import { useMessageStore } from "../../store/messageStore";
 import { useWebSocketContext } from "../../context/WebSocketContext";
 import { EmojiPicker } from "./EmojiPicker";
 
@@ -11,7 +12,8 @@ export function MessageInput() {
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<number>();
-  const { sendMessage, activeChat } = useChatStore();
+  const { activeChat } = useChatStore();
+  const { sendMessage } = useMessageStore();
   const { sendTyping } = useWebSocketContext();
 
   // Auto-resize textarea
@@ -49,7 +51,7 @@ export function MessageInput() {
 
     setIsSending(true);
     try {
-      await sendMessage(message);
+      await sendMessage(activeChat.id, message);
       setMessage("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";

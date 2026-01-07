@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Filter, X, SlidersHorizontal } from "lucide-react";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
 import { ChatListItem } from "../chat-list/ChatListItem";

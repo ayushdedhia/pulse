@@ -1,4 +1,5 @@
 import { useChatStore } from "../../store/chatStore";
+import { useUserStore } from "../../store/userStore";
 import { useWebSocketContext } from "../../context/WebSocketContext";
 
 interface TypingIndicatorProps {
@@ -6,7 +7,8 @@ interface TypingIndicatorProps {
 }
 
 export function TypingIndicator({ name }: TypingIndicatorProps) {
-  const { activeChat, currentUser } = useChatStore();
+  const { activeChat } = useChatStore();
+  const { currentUser } = useUserStore();
   const { typingUsers } = useWebSocketContext();
 
   // Check if anyone is typing in the active chat (exclude self)

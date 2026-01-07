@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Search, ArrowLeft, UserPlus } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 
 import { useUIStore } from "../../store/uiStore";
 import { useChatStore } from "../../store/chatStore";
+import { userService } from "../../services";
 import { Avatar } from "../common/Avatar";
 import type { User } from "../../types";
 
@@ -25,7 +25,7 @@ export function NewChatModal() {
 
   const loadContacts = async () => {
     try {
-      const data = await invoke<User[]>("get_contacts");
+      const data = await userService.getContacts();
       setContacts(data);
     } catch (error) {
       console.error("Failed to load contacts:", error);
@@ -44,11 +44,10 @@ export function NewChatModal() {
     setError("");
 
     try {
-      await invoke("add_contact", {
-        id: newContactId.trim(),
-        name: newContactName.trim(),
-        phone: null,
-      });
+      await userService.addContact(
+        newContactId.trim(),
+        newContactName.trim()
+      );
       await loadContacts();
       setShowAddContact(false);
       setNewContactId("");
