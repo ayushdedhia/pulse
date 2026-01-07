@@ -6,18 +6,18 @@ use tauri::{AppHandle, Manager};
 pub struct Database(pub Mutex<Connection>);
 
 pub fn init_database(app: &AppHandle) -> Result<()> {
-   let app_dir = app
-      .path()
-      .app_data_dir()
-      .expect("Failed to get app data dir");
-   fs::create_dir_all(&app_dir).expect("Failed to create app data directory");
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .expect("Failed to get app data dir");
+    fs::create_dir_all(&app_dir).expect("Failed to create app data directory");
 
-   let db_path = app_dir.join("pulse.db");
-   let conn = Connection::open(db_path)?;
+    let db_path = app_dir.join("pulse.db");
+    let conn = Connection::open(db_path)?;
 
-   // Create tables
-   conn.execute_batch(
-      "
+    // Create tables
+    conn.execute_batch(
+        "
         -- Users table (contacts + self)
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
@@ -68,20 +68,20 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
         CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id);
         ",
-   )?;
+    )?;
 
-   // Create current user if not exists
-   let user_count: i32 =
-      conn.query_row("SELECT COUNT(*) FROM users WHERE is_self = 1", [], |row| {
-         row.get(0)
-      })?;
+    // Create current user if not exists
+    let user_count: i32 =
+        conn.query_row("SELECT COUNT(*) FROM users WHERE is_self = 1", [], |row| {
+            row.get(0)
+        })?;
 
-   if user_count == 0 {
-      // Generate a unique user ID for this instance
-      let user_id = uuid::Uuid::new_v4().to_string();
-      // Create a default name using part of the UUID for uniqueness
-      let default_name = format!("User {}", &user_id[..8]);
-      conn.execute(
+    if user_count == 0 {
+        // Generate a unique user ID for this instance
+        let user_id = uuid::Uuid::new_v4().to_string();
+        // Create a default name using part of the UUID for uniqueness
+        let default_name = format!("User {}", &user_id[..8]);
+        conn.execute(
             "INSERT INTO users (id, name, phone, avatar_url, about, is_self, is_online) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             (
                 &user_id,
@@ -93,8 +93,8 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
                 1,
             ),
         )?;
-   }
+    }
 
-   app.manage(Database(Mutex::new(conn)));
-   Ok(())
+    app.manage(Database(Mutex::new(conn)));
+    Ok(())
 }

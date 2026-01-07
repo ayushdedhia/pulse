@@ -1,13 +1,14 @@
+import { invoke } from "@tauri-apps/api/core";
 import {
   createContext,
+  ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
-  ReactNode,
-  useCallback,
 } from "react";
-import { invoke } from "@tauri-apps/api/core";
+
 import { useChatStore } from "../store/chatStore";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
@@ -27,7 +28,7 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue>({
   isConnected: false,
   typingUsers: {},
-  sendTyping: () => {},
+  sendTyping: () => { },
   onlineUsers: new Set(),
 });
 

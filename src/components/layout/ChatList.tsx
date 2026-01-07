@@ -1,5 +1,6 @@
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
 import { ChatListItem } from "../chat-list/ChatListItem";
@@ -44,9 +45,8 @@ export function ChatList() {
         >
           <Search
             size={18}
-            className={`flex-shrink-0 transition-colors duration-200 ${
-              isSearchFocused ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
-            }`}
+            className={`flex-shrink-0 transition-colors duration-200 ${isSearchFocused ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
+              }`}
           />
           <input
             type="text"
@@ -73,7 +73,7 @@ export function ChatList() {
       </div>
 
       {/* Filter Chips */}
-      <div className="px-3 pb-2 flex gap-2">
+      <div className="flex gap-2 px-3 pb-2">
         <FilterChip label="All" active />
         <FilterChip label="Unread" />
         <FilterChip label="Groups" />

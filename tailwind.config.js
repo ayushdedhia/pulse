@@ -49,6 +49,17 @@ export default {
           "Helvetica Neue",
           "sans-serif",
         ],
+        mono: [
+          "JetBrains Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Monaco",
+          "Consolas",
+          "Liberation Mono",
+          "Courier New",
+          "monospace",
+        ],
       },
       fontSize: {
         "2xs": ["0.625rem", { lineHeight: "0.875rem" }],

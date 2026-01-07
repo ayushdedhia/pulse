@@ -1,8 +1,8 @@
 import { ArrowLeft, Camera, Check, Copy, Pencil } from "lucide-react";
 import { useState } from "react";
 
-import { useUserStore } from "../../store/userStore";
 import { useUIStore } from "../../store/uiStore";
+import { useUserStore } from "../../store/userStore";
 import { Avatar } from "../common/Avatar";
 
 export function ProfileModal() {
@@ -156,7 +156,7 @@ export function ProfileModal() {
             <label className="text-sm text-[var(--accent)] mb-2 block">
               Phone
             </label>
-            <span className="text-[var(--text-primary)]">
+            <span className="text-[var(--text-primary)] font-mono">
               {currentUser?.phone || "Not set"}
             </span>
           </div>

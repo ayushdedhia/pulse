@@ -1,17 +1,19 @@
 import {
-  MessageCircle,
-  Users,
   CircleDashed,
-  Settings,
+  MessageCircle,
   Moon,
+  Settings,
   Sun,
+  Users,
+  Wifi,
 } from "lucide-react";
+
 import { useUIStore } from "../../store/uiStore";
 import { useUserStore } from "../../store/userStore";
 import { Avatar } from "../common/Avatar";
 
 export function Sidebar() {
-  const { theme, toggleTheme, setShowProfile, setShowNewChat } = useUIStore();
+  const { theme, toggleTheme, setShowProfile, setShowNewChat, setShowNetwork } = useUIStore();
   const { currentUser } = useUserStore();
 
   return (
@@ -28,12 +30,12 @@ export function Sidebar() {
             size={44}
             className="ring-2 ring-transparent group-hover:ring-[var(--accent)] transition-all duration-300"
           />
-          <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+          <div className="absolute inset-0 transition-colors duration-200 rounded-full bg-black/0 group-hover:bg-black/10" />
         </button>
       </div>
 
       {/* Navigation Icons */}
-      <nav className="flex-1 flex flex-col items-center pt-2 gap-1">
+      <nav className="flex flex-col items-center flex-1 gap-1 pt-2">
         <SidebarButton
           icon={<MessageCircle size={24} strokeWidth={1.75} />}
           active
@@ -51,7 +53,12 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom Icons */}
-      <div className="flex flex-col items-center pb-4 gap-1">
+      <div className="flex flex-col items-center gap-1 pb-4">
+        <SidebarButton
+          icon={<Wifi size={24} strokeWidth={1.75} />}
+          tooltip="Network"
+          onClick={() => setShowNetwork(true)}
+        />
         <SidebarButton
           icon={theme === "dark" ? <Sun size={24} strokeWidth={1.75} /> : <Moon size={24} strokeWidth={1.75} />}
           tooltip={theme === "dark" ? "Light mode" : "Dark mode"}

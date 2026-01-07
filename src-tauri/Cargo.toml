@@ -26,6 +26,9 @@ tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.24"
 futures-util = "0.3"
 
+# LAN Networking
+local-ip-address = "0.6"
+
 # E2E Encryption (X25519 + AES-256-GCM)
 aes-gcm = "0.10"
 x25519-dalek = { version = "2", features = ["static_secrets"] }

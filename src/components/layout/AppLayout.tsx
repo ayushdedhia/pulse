@@ -1,12 +1,15 @@
-import { useState, useCallback } from "react";
-import { Sidebar } from "./Sidebar";
-import { ChatList } from "./ChatList";
-import { ChatWindow } from "./ChatWindow";
+import { Lock, MessageCircle } from "lucide-react";
+import { useCallback, useState } from "react";
+
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
+import { NetworkModal } from "../modals/NetworkModal";
 import { NewChatModal } from "../modals/NewChatModal";
 import { ProfileModal } from "../modals/ProfileModal";
-import { MessageCircle, Lock } from "lucide-react";
+import { ChatList } from "./ChatList";
+import { ChatWindow } from "./ChatWindow";
+import { Sidebar } from "./Sidebar";
+import { Titlebar } from "./Titlebar";
 
 const MIN_CHAT_LIST_WIDTH = 280;
 const MAX_CHAT_LIST_WIDTH = 500;
@@ -14,7 +17,7 @@ const DEFAULT_CHAT_LIST_WIDTH = 380;
 
 export function AppLayout() {
   const { activeChat } = useChatStore();
-  const { showNewChat, showProfile } = useUIStore();
+  const { showNewChat, showProfile, showNetwork } = useUIStore();
   const [chatListWidth, setChatListWidth] = useState(DEFAULT_CHAT_LIST_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -42,40 +45,47 @@ export function AppLayout() {
   }, [chatListWidth]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--bg-primary)] transition-theme">
-      {/* Left Sidebar with icons */}
-      <Sidebar />
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-primary)] transition-theme">
+      {/* Custom Titlebar */}
+      <Titlebar />
 
-      {/* Chat List Panel with Resizable Handle */}
-      <div
-        className="flex flex-col border-r border-[var(--border-light)] bg-[var(--bg-primary)] relative"
-        style={{ width: chatListWidth, minWidth: MIN_CHAT_LIST_WIDTH }}
-      >
-        <ChatList />
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar with icons */}
+        <Sidebar />
 
-        {/* Resize Handle */}
+        {/* Chat List Panel with Resizable Handle */}
         <div
-          className={`
-            absolute right-0 top-0 bottom-0 w-1 cursor-col-resize
-            hover:bg-[var(--accent)]/50 transition-colors
-            ${isResizing ? "bg-[var(--accent)]" : ""}
-          `}
-          onMouseDown={handleMouseDown}
-        />
-      </div>
+          className="flex flex-col border-r border-[var(--border-light)] bg-[var(--bg-primary)] relative"
+          style={{ width: chatListWidth, minWidth: MIN_CHAT_LIST_WIDTH }}
+        >
+          <ChatList />
 
-      {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col ${isResizing ? "select-none" : ""}`}>
-        {activeChat ? (
-          <ChatWindow />
-        ) : (
-          <EmptyState />
-        )}
+          {/* Resize Handle */}
+          <div
+            className={`
+              absolute right-0 top-0 bottom-0 w-1 cursor-col-resize
+              hover:bg-[var(--accent)]/50 transition-colors
+              ${isResizing ? "bg-[var(--accent)]" : ""}
+            `}
+            onMouseDown={handleMouseDown}
+          />
+        </div>
+
+        {/* Main Chat Area */}
+        <div className={`flex-1 flex flex-col ${isResizing ? "select-none" : ""}`}>
+          {activeChat ? (
+            <ChatWindow />
+          ) : (
+            <EmptyState />
+          )}
+        </div>
       </div>
 
       {/* Modals */}
       {showNewChat && <NewChatModal />}
       {showProfile && <ProfileModal />}
+      {showNetwork && <NetworkModal />}
     </div>
   );
 }
@@ -85,7 +95,7 @@ function EmptyState() {
     <div className="flex-1 flex flex-col items-center justify-center bg-[var(--bg-secondary)] text-center p-8 relative transition-theme">
       <div className="max-w-[420px] animate-fade-in">
         {/* Animated Icon */}
-        <div className="mb-8 relative">
+        <div className="relative mb-8">
           <div className="w-[140px] h-[140px] mx-auto rounded-full bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent)]/5 flex items-center justify-center">
             <div className="w-[100px] h-[100px] rounded-full bg-gradient-to-br from-[var(--accent)]/30 to-[var(--accent)]/10 flex items-center justify-center">
               <MessageCircle

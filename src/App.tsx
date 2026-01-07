@@ -1,8 +1,9 @@
 import { useEffect } from "react";
+
 import { AppLayout } from "./components/layout/AppLayout";
+import { WebSocketProvider } from "./context/WebSocketContext";
 import { useChatStore } from "./store/chatStore";
 import { useUIStore } from "./store/uiStore";
-import { WebSocketProvider } from "./context/WebSocketContext";
 
 function App() {
   const { loadChats } = useChatStore();

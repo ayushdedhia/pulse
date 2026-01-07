@@ -12,7 +12,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - **Real-time**: WebSocket (tokio-tungstenite)
 - **Encryption**: X25519 + AES-256-GCM (E2E)
 - **Icons**: Lucide React
-- **Font**: Inter (Google Fonts)
+- **Fonts**: Inter (UI), JetBrains Mono (monospace for IDs/IPs)
 
 ## Target Features (WhatsApp Parity)
 
@@ -61,6 +61,7 @@ src/
 ├── components/
 │   ├── layout/
 │   │   ├── AppLayout.tsx       # Main 3-panel layout with resize
+│   │   ├── Titlebar.tsx        # Custom window titlebar (minimize/maximize/close)
 │   │   ├── Sidebar.tsx         # Navigation sidebar
 │   │   ├── ChatList.tsx        # Chat list with search/filters
 │   │   └── ChatWindow.tsx      # Active chat view
@@ -79,7 +80,8 @@ src/
 │   │   └── Avatar.tsx          # User avatar with fallback
 │   └── modals/
 │       ├── NewChatModal.tsx    # Create new chat
-│       └── ProfileModal.tsx    # User profile editor
+│       ├── ProfileModal.tsx    # User profile editor
+│       └── NetworkModal.tsx    # LAN network settings
 ├── services/                   # API abstraction layer (NEW)
 │   ├── index.ts               # Re-exports all services
 │   ├── userService.ts         # User API calls
@@ -121,12 +123,14 @@ src-tauri/src/
 │   ├── user.rs               # get_user, get_current_user, update_user, get_contacts, add_contact
 │   ├── chat.rs               # get_chats, create_chat
 │   ├── message.rs            # get_messages, send_message, mark_as_read, search_messages, receive_message
-│   └── websocket.rs          # broadcast_message, get_ws_port
+│   └── websocket.rs          # broadcast_message, get_ws_port, connect_to_peer, get_network_status
 ├── websocket/                 # WebSocket server (REFACTORED)
 │   ├── mod.rs                # Re-exports + init_websocket_server
-│   ├── server.rs             # WebSocketServer struct
+│   ├── server.rs             # WebSocketServer struct + NetworkStatus, PeerInfo
 │   ├── handlers.rs           # Connection handlers
 │   └── messages.rs           # WsMessage enum
+├── capabilities/              # Tauri 2.0 permissions
+│   └── default.json          # Window permissions (close, minimize, maximize, drag)
 ├── crypto/                    # E2E encryption (REFACTORED)
 │   ├── mod.rs                # Re-exports + Tauri commands
 │   ├── manager.rs            # CryptoManager struct
@@ -171,8 +175,9 @@ Shared utilities extracted to `utils/helpers.rs`:
 - Dark mode panels: #202C33
 - Dark mode hover: #2A3942
 - Light mode: #FFFFFF, #F0F2F5
-- Font: Inter (Google Fonts)
+- Fonts: Inter (UI), JetBrains Mono (IDs, IPs, phone numbers)
 - Animations: fadeIn, slideUp, scaleIn, typingBounce
+- Custom titlebar with native window controls (decorations: false)
 
 ## Commands
 ```bash
@@ -220,6 +225,21 @@ The `.vscode/settings.json` configures rust-analyzer to suppress Tauri macro war
 - **Codebase refactored for modularity**
   - Backend: models/, commands/, websocket/, crypto/, utils/ modules
   - Frontend: services/ layer, split Zustand stores
+- **Custom window titlebar**
+  - Native decorations disabled (decorations: false in tauri.conf.json)
+  - Custom Titlebar component with minimize/maximize/close buttons
+  - Window dragging via startDragging() API
+  - Double-click to maximize
+  - Tauri 2.0 capabilities/permissions configured in capabilities/default.json
+- **LAN networking support**
+  - WebSocket server binds to 0.0.0.0:9001 for LAN access
+  - Network modal shows local IP address
+  - Manual peer connection by IP address
+  - Uses `local-ip-address` crate for IP detection
+- **UI polish**
+  - JetBrains Mono font for IDs, IPs, phone numbers, unread counts
+  - Attachment menu closes on outside click
+  - Message input vertically centered
 
 ## Multi-Instance Testing
 ```bash
@@ -236,11 +256,12 @@ Test instance uses separate database and target directory (`target-test/`).
 - [ ] File/image upload and preview
 - [ ] Store encryption keys persistently
 - [ ] Key verification UI (safety numbers)
-- [ ] Network discovery for LAN peers
+- [ ] Auto network discovery for LAN peers (mDNS/broadcast)
 - [ ] Message delivery receipts (double ticks)
 
 ## Notes
 - Offline-first architecture (local SQLite)
 - Networking/cloud sync to be added later
-- WebSocket currently local only (port 9001)
+- WebSocket binds to 0.0.0.0:9001 (accessible on LAN)
 - Multi-instance works on same machine via separate Tauri configs
+- Custom titlebar requires capabilities/default.json for window permissions in Tauri 2.0

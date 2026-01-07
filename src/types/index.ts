@@ -37,3 +37,16 @@ export interface Message {
 export type MessageStatus = "sent" | "delivered" | "read";
 
 export type Theme = "dark" | "light";
+
+export interface PeerInfo {
+  ip: string;
+  port: number;
+  connected: boolean;
+}
+
+export interface NetworkStatus {
+  is_server: boolean;
+  local_ip: string | null;
+  port: number;
+  connected_peers: PeerInfo[];
+}

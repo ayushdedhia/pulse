@@ -1,4 +1,5 @@
 import { Check, CheckCheck } from "lucide-react";
+
 import type { MessageStatus as Status } from "../../types";
 
 interface MessageStatusProps {

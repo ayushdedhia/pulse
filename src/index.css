@@ -1,5 +1,5 @@
-/* Import Inter font - must be first */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Import Inter font and JetBrains Mono for monospace - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -11,6 +11,7 @@
   --bg-secondary: #202C33;
   --bg-tertiary: #2A3942;
   --bg-hover: #2A3942;
+  --bg-titlebar: #202C33;
   --bg-chat: #0B141A;
   --bg-chat-pattern: rgba(11, 20, 26, 0.95);
   --accent: #00A884;
@@ -39,6 +40,7 @@
   --bg-secondary: #F0F2F5;
   --bg-tertiary: #E9EDEF;
   --bg-hover: #F5F6F6;
+  --bg-titlebar: #F0F2F5;
   --bg-chat: #EFEAE2;
   --bg-chat-pattern: rgba(239, 234, 226, 0.95);
   --accent: #00A884;

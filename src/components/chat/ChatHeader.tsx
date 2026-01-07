@@ -1,8 +1,9 @@
-import { Search, MoreVertical, Phone, Video } from "lucide-react";
+import { MoreVertical, Phone, Search, Video } from "lucide-react";
+
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
-import { Avatar } from "../common/Avatar";
 import { formatLastSeen } from "../../utils/formatTime";
+import { Avatar } from "../common/Avatar";
 
 export function ChatHeader() {
   const { activeChat } = useChatStore();
@@ -31,14 +32,14 @@ export function ChatHeader() {
       {/* Avatar and Info */}
       <button
         onClick={() => setShowContactInfo(!showContactInfo)}
-        className="flex items-center gap-3 flex-1 min-w-0 group"
+        className="flex items-center flex-1 min-w-0 gap-3 group"
       >
         <div className="relative flex-shrink-0">
           <Avatar
             src={avatarUrl}
             name={displayName || ""}
             size={42}
-            className="group-hover:scale-105 transition-transform duration-200"
+            className="transition-transform duration-200 group-hover:scale-105"
           />
           {isOnline && (
             <span className="absolute bottom-0 right-0 w-3 h-3 bg-[var(--online-indicator)] border-2 border-[var(--bg-secondary)] rounded-full online-pulse" />
@@ -83,7 +84,7 @@ function HeaderButton({ icon, tooltip, onClick }: HeaderButtonProps) {
         group relative
       "
     >
-      <span className="group-hover:scale-110 transition-transform duration-200">
+      <span className="transition-transform duration-200 group-hover:scale-110">
         {icon}
       </span>
 

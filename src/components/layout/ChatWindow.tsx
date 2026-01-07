@@ -1,6 +1,6 @@
 import { ChatHeader } from "../chat/ChatHeader";
-import { MessageList } from "../chat/MessageList";
 import { MessageInput } from "../chat/MessageInput";
+import { MessageList } from "../chat/MessageList";
 import { TypingIndicator } from "../chat/TypingIndicator";
 
 export function ChatWindow() {

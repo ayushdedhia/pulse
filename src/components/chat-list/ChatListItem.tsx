@@ -1,8 +1,9 @@
 import { format, isToday, isYesterday } from "date-fns";
-import type { Chat } from "../../types";
-import { Avatar } from "../common/Avatar";
-import { MessageStatus } from "../chat/MessageStatus";
 import type { CSSProperties } from "react";
+
+import type { Chat } from "../../types";
+import { MessageStatus } from "../chat/MessageStatus";
+import { Avatar } from "../common/Avatar";
 
 interface ChatListItemProps {
   chat: Chat;
@@ -52,7 +53,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
           src={avatarUrl}
           name={displayName || ""}
           size={50}
-          className="group-hover:scale-105 transition-transform duration-200"
+          className="transition-transform duration-200 group-hover:scale-105"
         />
         {isOnline && (
           <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-[var(--online-indicator)] border-2 border-[var(--bg-primary)] rounded-full online-pulse" />
@@ -65,11 +66,10 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
           <span className={`font-medium truncate ${hasUnread ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"}`}>
             {displayName}
           </span>
-          <span className={`text-[11px] flex-shrink-0 ${
-            hasUnread
+          <span className={`text-[11px] flex-shrink-0 ${hasUnread
               ? "text-[var(--accent)] font-medium"
               : "text-[var(--text-secondary)]"
-          }`}>
+            }`}>
             {lastMessageTime}
           </span>
         </div>
@@ -99,7 +99,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
               text-[11px] font-medium rounded-full
               animate-badge-pulse
             ">
-              {chat.unread_count > 99 ? "99+" : chat.unread_count}
+              <span className="font-mono">{chat.unread_count > 99 ? "99+" : chat.unread_count}</span>
             </span>
           )}
         </div>

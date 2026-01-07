@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { Search, ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft, Search, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { useUIStore } from "../../store/uiStore";
-import { useChatStore } from "../../store/chatStore";
 import { userService } from "../../services";
-import { Avatar } from "../common/Avatar";
+import { useChatStore } from "../../store/chatStore";
+import { useUIStore } from "../../store/uiStore";
 import type { User } from "../../types";
+import { Avatar } from "../common/Avatar";
 
 export function NewChatModal() {
   const [contacts, setContacts] = useState<User[]>([]);
@@ -122,7 +122,7 @@ export function NewChatModal() {
                 value={newContactId}
                 onChange={(e) => setNewContactId(e.target.value)}
                 placeholder="Contact ID (e.g., user123)"
-                className="w-full px-3 py-2 bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] rounded-lg outline-none text-sm"
+                className="w-full px-3 py-2 bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] rounded-lg outline-none text-sm font-mono"
                 autoFocus
               />
               <input
@@ -133,7 +133,7 @@ export function NewChatModal() {
                 className="w-full px-3 py-2 bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] rounded-lg outline-none text-sm"
               />
               {error && (
-                <p className="text-red-500 text-xs">{error}</p>
+                <p className="text-xs text-red-500">{error}</p>
               )}
               <div className="flex gap-2">
                 <button
@@ -183,7 +183,7 @@ export function NewChatModal() {
           ) : filteredContacts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-[var(--text-secondary)]">
               <p>No contacts yet</p>
-              <p className="text-xs mt-1">Add a contact to start chatting</p>
+              <p className="mt-1 text-xs">Add a contact to start chatting</p>
             </div>
           ) : (
             <>

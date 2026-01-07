@@ -1,6 +1,6 @@
+import { useWebSocketContext } from "../../context/WebSocketContext";
 import { useChatStore } from "../../store/chatStore";
 import { useUserStore } from "../../store/userStore";
-import { useWebSocketContext } from "../../context/WebSocketContext";
 
 interface TypingIndicatorProps {
   name?: string;

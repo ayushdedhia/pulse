@@ -4,20 +4,20 @@ use x25519_dalek::{PublicKey, StaticSecret};
 /// Serializable key pair for storage/transport
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableKeyPair {
-   pub public_key: Vec<u8>,
-   pub private_key: Vec<u8>,
+    pub public_key: Vec<u8>,
+    pub private_key: Vec<u8>,
 }
 
 /// Encrypted message structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedMessage {
-   pub ciphertext: Vec<u8>,
-   pub nonce: Vec<u8>,
-   pub sender_public_key: Vec<u8>,
+    pub ciphertext: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub sender_public_key: Vec<u8>,
 }
 
 /// Internal key pair for X25519 key exchange
 pub struct KeyPair {
-   pub public_key: PublicKey,
-   pub private_key: StaticSecret,
+    pub public_key: PublicKey,
+    pub private_key: StaticSecret,
 }
