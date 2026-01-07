@@ -91,8 +91,9 @@ src/
 │   ├── messageStore.ts        # Messages by chatId (NEW)
 │   ├── userStore.ts           # Current user state (NEW)
 │   └── uiStore.ts             # UI state (theme, modals)
+├── utils/                      # Utility functions (NEW)
+│   └── formatTime.ts          # Time formatting utilities
 ├── hooks/
-│   ├── useFormatTime.ts       # Time formatting hook
 │   ├── useWebSocket.ts        # WebSocket connection hook
 │   └── useCrypto.ts           # E2E encryption hook
 ├── context/

@@ -2,7 +2,7 @@ import { Search, MoreVertical, Phone, Video } from "lucide-react";
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
 import { Avatar } from "../common/Avatar";
-import { formatLastSeen } from "../../hooks/useFormatTime";
+import { formatLastSeen } from "../../utils/formatTime";
 
 export function ChatHeader() {
   const { activeChat } = useChatStore();
