@@ -6,7 +6,7 @@ import { useUIStore } from "../../store/uiStore";
 import type { NetworkStatus, PeerInfo } from "../../types";
 
 export function NetworkModal() {
-  const { setShowNetwork } = useUIStore();
+  const setShowNetwork = useUIStore((state) => state.setShowNetwork);
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus | null>(null);
   const [peerIp, setPeerIp] = useState("");
   const [peerPort, setPeerPort] = useState("9001");

@@ -16,8 +16,9 @@ export function NewChatModal() {
   const [newContactName, setNewContactName] = useState("");
   const [addingContact, setAddingContact] = useState(false);
   const [error, setError] = useState("");
-  const { setShowNewChat } = useUIStore();
-  const { createChat, setActiveChat } = useChatStore();
+  const setShowNewChat = useUIStore((state) => state.setShowNewChat);
+  const createChat = useChatStore((state) => state.createChat);
+  const setActiveChat = useChatStore((state) => state.setActiveChat);
 
   useEffect(() => {
     loadContacts();

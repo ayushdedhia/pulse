@@ -5,6 +5,7 @@ use tauri::State;
 #[tauri::command]
 pub fn broadcast_message(
     db: State<'_, Database>,
+    message_id: String,
     chat_id: String,
     content: String,
     sender_id: String,
@@ -20,7 +21,7 @@ pub fn broadcast_message(
         .unwrap_or_else(|_| "Unknown".to_string());
 
     let msg = WsMessage::ChatMessage {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: message_id,
         chat_id,
         sender_id,
         sender_name,

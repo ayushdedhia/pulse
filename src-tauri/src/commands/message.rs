@@ -1,6 +1,7 @@
 use crate::db::Database;
 use crate::models::{Message, User};
 use crate::utils::{generate_deterministic_chat_id, get_self_id};
+use crate::websocket::{get_ws_server, WsMessage};
 use tauri::State;
 
 #[tauri::command]
@@ -118,14 +119,55 @@ pub fn send_message(
 }
 
 #[tauri::command]
-pub fn mark_as_read(db: State<'_, Database>, chat_id: String) -> Result<bool, String> {
+pub fn mark_as_read(db: State<'_, Database>, chat_id: String) -> Result<Vec<String>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     let self_id = get_self_id(&conn)?;
 
+    // Get message IDs that will be marked as read (for read receipts)
+    let mut stmt = conn
+        .prepare(
+            "SELECT id FROM messages WHERE chat_id = ?1 AND sender_id != ?2 AND status != 'read'",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let message_ids: Vec<String> = stmt
+        .query_map([&chat_id, &self_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Update messages to read status
     conn.execute(
         "UPDATE messages SET status = 'read' WHERE chat_id = ?1 AND sender_id != ?2",
         [&chat_id, &self_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Broadcast read receipt if there are messages to mark as read
+    if !message_ids.is_empty() {
+        let read_receipt = WsMessage::ReadReceipt {
+            chat_id: chat_id.clone(),
+            user_id: self_id,
+            message_ids: message_ids.clone(),
+        };
+        let _ = get_ws_server().broadcast(read_receipt);
+    }
+
+    Ok(message_ids)
+}
+
+#[tauri::command]
+pub fn update_message_status(
+    db: State<'_, Database>,
+    message_id: String,
+    status: String,
+) -> Result<bool, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "UPDATE messages SET status = ?1 WHERE id = ?2",
+        [&status, &message_id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -276,22 +318,30 @@ pub fn receive_message(
 
     // Get sender info
     let sender = conn
-      .query_row(
-         "SELECT id, name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
-         [&sender_id],
-         |row| {
-            Ok(User {
-               id: row.get(0)?,
-               name: row.get(1)?,
-               phone: row.get(2)?,
-               avatar_url: row.get(3)?,
-               about: row.get(4)?,
-               last_seen: row.get(5)?,
-               is_online: row.get::<_, i32>(6)? == 1,
-            })
-         },
-      )
-      .ok();
+        .query_row(
+            "SELECT id, name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
+            [&sender_id],
+            |row| {
+                Ok(User {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    phone: row.get(2)?,
+                    avatar_url: row.get(3)?,
+                    about: row.get(4)?,
+                    last_seen: row.get(5)?,
+                    is_online: row.get::<_, i32>(6)? == 1,
+                })
+            },
+        )
+        .ok();
+
+    // Broadcast delivery receipt back to sender
+    let delivery_receipt = WsMessage::DeliveryReceipt {
+        message_id: id.clone(),
+        chat_id: chat_id.clone(),
+        delivered_to: self_id,
+    };
+    let _ = get_ws_server().broadcast(delivery_receipt);
 
     Ok(Message {
         id,

@@ -13,6 +13,10 @@ import { useChatStore } from "../store/chatStore";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
 
+// Get store functions without subscribing to state changes
+const getMessageActions = () => useMessageStore.getState();
+const getChatActions = () => useChatStore.getState();
+
 interface WsMessage {
   type: string;
   [key: string]: unknown;
@@ -39,19 +43,29 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<number>();
 
-  const { currentUser } = useUserStore();
-  const { loadChats } = useChatStore();
-  const { loadMessages } = useMessageStore();
+  const currentUser = useUserStore((state) => state.currentUser);
 
   const handleMessage = useCallback(
     async (data: WsMessage) => {
       switch (data.type) {
         case "message":
-          // Save incoming message to local database, then reload
+          // Save incoming message to local database, then add to store
           if (data.chat_id && data.id && data.sender_id && data.content !== undefined) {
             try {
               // receive_message returns the saved message with the correct deterministic chat_id
-              const savedMessage = await invoke<{ chat_id: string }>("receive_message", {
+              const savedMessage = await invoke<{
+                id: string;
+                chat_id: string;
+                sender_id: string;
+                content: string | null;
+                message_type: string;
+                status: string;
+                created_at: number;
+                sender?: {
+                  id: string;
+                  name: string;
+                };
+              }>("receive_message", {
                 id: data.id as string,
                 chatId: data.chat_id as string,
                 senderId: data.sender_id as string,
@@ -59,9 +73,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 content: data.content as string,
                 timestamp: data.timestamp as number,
               });
-              // Use the actual chat_id from the saved message (deterministic ID)
-              loadMessages(savedMessage.chat_id);
-              loadChats();
+
+              // Add message directly to store instead of reloading all
+              getMessageActions().addMessage(savedMessage.chat_id, savedMessage as import("../types").Message);
+              getChatActions().loadChats();
             } catch (e) {
               // Message might be from ourselves or already exists, that's ok
               console.debug("receive_message:", e);
@@ -115,15 +130,26 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           }
           break;
 
+        case "delivery_receipt":
+          // Update message status to 'delivered' when recipient receives it
+          // delivered_to is the recipient's ID, so we update if it's NOT us (meaning we sent it)
+          if (data.message_id && data.delivered_to !== currentUser?.id) {
+            getMessageActions().updateMessageStatus(data.message_id as string, "delivered");
+          }
+          break;
+
         case "read_receipt":
-          // Could update message status
-          if (data.chat_id) {
-            loadMessages(data.chat_id as string);
+          // Update message status to 'read' when recipient reads it
+          if (data.message_ids && data.user_id !== currentUser?.id) {
+            const messageIds = data.message_ids as string[];
+            for (const messageId of messageIds) {
+              getMessageActions().updateMessageStatus(messageId, "read");
+            }
           }
           break;
       }
     },
-    [loadMessages, loadChats]
+    [currentUser]
   );
 
   const connect = useCallback(async () => {

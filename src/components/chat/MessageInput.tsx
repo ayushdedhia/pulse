@@ -13,8 +13,9 @@ export function MessageInput() {
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<number>();
-  const { activeChat } = useChatStore();
-  const { sendMessage } = useMessageStore();
+
+  const activeChat = useChatStore((state) => state.activeChat);
+  const sendMessage = useMessageStore((state) => state.sendMessage);
   const { sendTyping } = useWebSocketContext();
 
   // Auto-resize textarea

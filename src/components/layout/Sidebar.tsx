@@ -13,8 +13,12 @@ import { useUserStore } from "../../store/userStore";
 import { Avatar } from "../common/Avatar";
 
 export function Sidebar() {
-  const { theme, toggleTheme, setShowProfile, setShowNewChat, setShowNetwork } = useUIStore();
-  const { currentUser } = useUserStore();
+  const theme = useUIStore((state) => state.theme);
+  const toggleTheme = useUIStore((state) => state.toggleTheme);
+  const setShowProfile = useUIStore((state) => state.setShowProfile);
+  const setShowNewChat = useUIStore((state) => state.setShowNewChat);
+  const setShowNetwork = useUIStore((state) => state.setShowNetwork);
+  const currentUser = useUserStore((state) => state.currentUser);
 
   return (
     <div className="flex flex-col w-[72px] min-w-[72px] bg-[var(--bg-secondary)] border-r border-[var(--border-light)] transition-theme">

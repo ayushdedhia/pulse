@@ -44,13 +44,11 @@ export function Titlebar() {
   return (
     <div
       ref={titlebarRef}
-      className="h-8 flex items-center justify-between bg-[var(--bg-titlebar)] select-none"
+      className="h-10 flex items-center justify-between bg-[var(--bg-titlebar)] select-none"
     >
-      {/* App Title */}
-      <div className="flex items-center h-full gap-2 px-3 flex-1">
-        <span className="text-sm font-medium text-[var(--text-primary)]">
-          Pulse
-        </span>
+      {/* App Logo & Title */}
+      <div className="flex items-center flex-1 h-full px-4">
+        <img src="/logo-with-name.png" alt="Pulse" className="object-contain w-auto h-6" />
       </div>
 
       {/* Window Controls */}

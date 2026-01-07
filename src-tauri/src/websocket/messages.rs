@@ -24,11 +24,17 @@ pub enum WsMessage {
         is_online: bool,
         last_seen: Option<i64>,
     },
+    #[serde(rename = "delivery_receipt")]
+    DeliveryReceipt {
+        message_id: String,
+        chat_id: String,
+        delivered_to: String,
+    },
     #[serde(rename = "read_receipt")]
     ReadReceipt {
         chat_id: String,
         user_id: String,
-        message_id: String,
+        message_ids: Vec<String>,
     },
     #[serde(rename = "connect")]
     Connect { user_id: String },

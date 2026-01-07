@@ -36,6 +36,7 @@ pub fn run() {
             commands::message::mark_as_read,
             commands::message::search_messages,
             commands::message::receive_message,
+            commands::message::update_message_status,
             // User commands
             commands::user::get_user,
             commands::user::get_current_user,

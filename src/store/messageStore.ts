@@ -14,6 +14,7 @@ interface MessageStore {
   addMessage: (chatId: string, message: Message) => void;
   markAsRead: (chatId: string) => Promise<void>;
   searchMessages: (query: string) => Promise<Message[]>;
+  updateMessageStatus: (messageId: string, status: Message["status"]) => Promise<void>;
 }
 
 export const useMessageStore = create<MessageStore>((set) => ({
@@ -61,6 +62,7 @@ export const useMessageStore = create<MessageStore>((set) => ({
       // Broadcast via WebSocket for real-time sync
       try {
         await websocketService.broadcastMessage(
+          message.id,
           chatId,
           content.trim(),
           currentUser?.id || "self"
@@ -74,6 +76,11 @@ export const useMessageStore = create<MessageStore>((set) => ({
   },
 
   addMessage: (chatId: string, message: Message) => {
+    const existingMessages = useMessageStore.getState().messages[chatId] || [];
+    // Check if message already exists (avoid duplicates)
+    if (existingMessages.some((m) => m.id === message.id)) {
+      return;
+    }
     set((state) => ({
       messages: {
         ...state.messages,
@@ -97,6 +104,48 @@ export const useMessageStore = create<MessageStore>((set) => ({
     } catch (error) {
       console.error("Failed to search messages:", error);
       return [];
+    }
+  },
+
+  updateMessageStatus: async (messageId: string, status: Message["status"]) => {
+    try {
+      // Update in database first
+      await messageService.updateMessageStatus(messageId, status);
+
+      // Update in local state (if message is loaded)
+      // Use retries to handle race condition where delivery receipt
+      // arrives before the message is added to the store
+      const tryUpdate = () => {
+        const state = useMessageStore.getState();
+        const chatIds = Object.keys(state.messages);
+
+        for (const chatId of chatIds) {
+          const messages = state.messages[chatId];
+          const msgIndex = messages.findIndex((msg) => msg.id === messageId);
+
+          if (msgIndex !== -1) {
+            set((s) => ({
+              messages: {
+                ...s.messages,
+                [chatId]: s.messages[chatId].map((msg) =>
+                  msg.id === messageId ? { ...msg, status } : msg
+                ),
+              },
+            }));
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Try immediately, then retry after delays if not found
+      if (!tryUpdate()) {
+        setTimeout(tryUpdate, 100);
+        setTimeout(tryUpdate, 300);
+        setTimeout(tryUpdate, 600);
+      }
+    } catch (error) {
+      console.error("Failed to update message status:", error);
     }
   },
 }));

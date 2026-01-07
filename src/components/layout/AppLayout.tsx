@@ -16,8 +16,10 @@ const MAX_CHAT_LIST_WIDTH = 500;
 const DEFAULT_CHAT_LIST_WIDTH = 380;
 
 export function AppLayout() {
-  const { activeChat } = useChatStore();
-  const { showNewChat, showProfile, showNetwork } = useUIStore();
+  const activeChat = useChatStore((state) => state.activeChat);
+  const showNewChat = useUIStore((state) => state.showNewChat);
+  const showProfile = useUIStore((state) => state.showProfile);
+  const showNetwork = useUIStore((state) => state.showNetwork);
   const [chatListWidth, setChatListWidth] = useState(DEFAULT_CHAT_LIST_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
 

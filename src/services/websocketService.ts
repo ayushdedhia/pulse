@@ -3,11 +3,12 @@ import { NetworkStatus } from "../types";
 
 export const websocketService = {
   broadcastMessage: (
+    messageId: string,
     chatId: string,
     content: string,
     senderId: string
   ): Promise<boolean> => {
-    return invoke<boolean>("broadcast_message", { chatId, content, senderId });
+    return invoke<boolean>("broadcast_message", { messageId, chatId, content, senderId });
   },
 
   getWsPort: (): Promise<number> => {

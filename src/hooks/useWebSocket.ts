@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
 
+const getMessageActions = () => useMessageStore.getState();
+
 export interface WsMessage {
   type: "message" | "typing" | "presence" | "read_receipt" | "connect" | "error";
   id?: string;
@@ -25,8 +27,7 @@ export function useWebSocket() {
   const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
   const reconnectTimeoutRef = useRef<number>();
 
-  const { currentUser } = useUserStore();
-  const { loadMessages } = useMessageStore();
+  const currentUser = useUserStore((state) => state.currentUser);
 
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -85,7 +86,7 @@ export function useWebSocket() {
         case "message":
           // Reload messages for the chat
           if (message.chat_id) {
-            loadMessages(message.chat_id);
+            getMessageActions().loadMessages(message.chat_id);
           }
           break;
 
@@ -128,7 +129,7 @@ export function useWebSocket() {
           break;
       }
     },
-    [loadMessages]
+    []
   );
 
   const sendMessage = useCallback(

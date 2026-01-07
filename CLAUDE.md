@@ -240,6 +240,13 @@ The `.vscode/settings.json` configures rust-analyzer to suppress Tauri macro war
   - JetBrains Mono font for IDs, IPs, phone numbers, unread counts
   - Attachment menu closes on outside click
   - Message input vertically centered
+- **Message delivery receipts (double ticks)**
+  - Single tick (✓): Message sent from device
+  - Double gray tick (✓✓): Message delivered to recipient's device
+  - Double blue tick (✓✓): Message read by recipient
+  - Real-time status updates via WebSocket (DeliveryReceipt, ReadReceipt)
+  - Auto-sends read receipts when window gains focus
+  - Optimized store updates using addMessage instead of full reload
 
 ## Multi-Instance Testing
 ```bash
@@ -257,7 +264,6 @@ Test instance uses separate database and target directory (`target-test/`).
 - [ ] Store encryption keys persistently
 - [ ] Key verification UI (safety numbers)
 - [ ] Auto network discovery for LAN peers (mDNS/broadcast)
-- [ ] Message delivery receipts (double ticks)
 
 ## Notes
 - Offline-first architecture (local SQLite)
@@ -265,3 +271,6 @@ Test instance uses separate database and target directory (`target-test/`).
 - WebSocket binds to 0.0.0.0:9001 (accessible on LAN)
 - Multi-instance works on same machine via separate Tauri configs
 - Custom titlebar requires capabilities/default.json for window permissions in Tauri 2.0
+
+## Important
+After implementing a feature do not forget to update this file without fail.

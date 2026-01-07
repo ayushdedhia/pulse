@@ -6,8 +6,9 @@ import { formatLastSeen } from "../../utils/formatTime";
 import { Avatar } from "../common/Avatar";
 
 export function ChatHeader() {
-  const { activeChat } = useChatStore();
-  const { setShowContactInfo, showContactInfo } = useUIStore();
+  const activeChat = useChatStore((state) => state.activeChat);
+  const setShowContactInfo = useUIStore((state) => state.setShowContactInfo);
+  const showContactInfo = useUIStore((state) => state.showContactInfo);
 
   if (!activeChat) return null;
 

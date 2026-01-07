@@ -6,8 +6,11 @@ import { useUIStore } from "../../store/uiStore";
 import { ChatListItem } from "../chat-list/ChatListItem";
 
 export function ChatList() {
-  const { chats, activeChat, setActiveChat } = useChatStore();
-  const { searchQuery, setSearchQuery } = useUIStore();
+  const chats = useChatStore((state) => state.chats);
+  const activeChat = useChatStore((state) => state.activeChat);
+  const setActiveChat = useChatStore((state) => state.setActiveChat);
+  const searchQuery = useUIStore((state) => state.searchQuery);
+  const setSearchQuery = useUIStore((state) => state.setSearchQuery);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const filteredChats = useMemo(() => {

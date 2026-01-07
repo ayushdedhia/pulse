@@ -8,9 +8,10 @@ import { DateDivider } from "./DateDivider";
 import { MessageBubble } from "./MessageBubble";
 
 export function MessageList() {
-  const { activeChat } = useChatStore();
-  const { messages } = useMessageStore();
-  const { currentUser } = useUserStore();
+  const activeChat = useChatStore((state) => state.activeChat);
+  const messages = useMessageStore((state) => state.messages);
+  const currentUser = useUserStore((state) => state.currentUser);
+  const markAsRead = useMessageStore((state) => state.markAsRead);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = activeChat ? messages[activeChat.id] || [] : [];
@@ -21,6 +22,40 @@ export function MessageList() {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
   }, [chatMessages]);
+
+  // Send read receipts and reload messages when window becomes visible/focused
+  const loadMessages = useMessageStore((state) => state.loadMessages);
+
+  useEffect(() => {
+    if (!activeChat) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // Reload messages in case new ones arrived while unfocused
+        loadMessages(activeChat.id);
+        markAsRead(activeChat.id);
+      }
+    };
+
+    const handleFocus = () => {
+      // Reload messages in case new ones arrived while unfocused
+      loadMessages(activeChat.id);
+      markAsRead(activeChat.id);
+    };
+
+    // Mark as read immediately if already visible
+    if (document.visibilityState === "visible") {
+      markAsRead(activeChat.id);
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [activeChat, markAsRead, loadMessages]);
 
   // Group messages by date
   const groupedMessages = chatMessages.reduce<{

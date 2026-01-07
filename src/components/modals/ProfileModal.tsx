@@ -6,8 +6,8 @@ import { useUserStore } from "../../store/userStore";
 import { Avatar } from "../common/Avatar";
 
 export function ProfileModal() {
-  const { setShowProfile } = useUIStore();
-  const { currentUser } = useUserStore();
+  const setShowProfile = useUIStore((state) => state.setShowProfile);
+  const currentUser = useUserStore((state) => state.currentUser);
   const [editingName, setEditingName] = useState(false);
   const [editingAbout, setEditingAbout] = useState(false);
   const [name, setName] = useState(currentUser?.name || "");

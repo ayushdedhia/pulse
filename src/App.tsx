@@ -6,12 +6,11 @@ import { useChatStore } from "./store/chatStore";
 import { useUIStore } from "./store/uiStore";
 
 function App() {
-  const { loadChats } = useChatStore();
-  const { theme } = useUIStore();
+  const theme = useUIStore((state) => state.theme);
 
   useEffect(() => {
-    loadChats();
-  }, [loadChats]);
+    useChatStore.getState().loadChats();
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
