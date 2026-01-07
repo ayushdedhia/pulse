@@ -63,10 +63,20 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
             edited_at INTEGER
         );
 
+        -- Public keys table (identity + peers) for E2E encryption
+        CREATE TABLE IF NOT EXISTS public_keys (
+            user_id TEXT PRIMARY KEY REFERENCES users(id),
+            public_key BLOB NOT NULL,
+            key_type TEXT CHECK(key_type IN ('identity', 'peer')) NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
         -- Create indexes for better performance
         CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
         CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
         CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id);
+        CREATE INDEX IF NOT EXISTS idx_public_keys_type ON public_keys(key_type);
         ",
     )?;
 

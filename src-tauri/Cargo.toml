@@ -38,6 +38,9 @@ rand = "0.8"
 base64 = "0.22"
 hex = "0.4"
 
+# OS Keyring for secure key storage
+keyring = "3"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

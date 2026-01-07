@@ -51,6 +51,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] Typing indicators via WebSocket
 - [x] User presence (online/offline/last seen)
 - [x] E2E Crypto Commands: generate_keys, get_public_key, init_chat_session, encrypt_message, decrypt_message, has_chat_session
+- [x] Persistent key storage: init_identity, store_peer_key, get_peer_key, ensure_chat_session
 - [ ] File upload/storage
 
 ## Project Structure (Refactored)
@@ -87,7 +88,8 @@ src/
 │   ├── userService.ts         # User API calls
 │   ├── chatService.ts         # Chat API calls
 │   ├── messageService.ts      # Message API calls
-│   └── websocketService.ts    # WebSocket API calls
+│   ├── websocketService.ts    # WebSocket API calls
+│   └── cryptoService.ts       # E2E encryption API calls
 ├── store/                      # Zustand stores (REFACTORED)
 │   ├── chatStore.ts           # Chat list + active chat state
 │   ├── messageStore.ts        # Messages by chatId (NEW)
@@ -133,8 +135,9 @@ src-tauri/src/
 │   └── default.json          # Window permissions (close, minimize, maximize, drag)
 ├── crypto/                    # E2E encryption (REFACTORED)
 │   ├── mod.rs                # Re-exports + Tauri commands
-│   ├── manager.rs            # CryptoManager struct
-│   └── types.rs              # SerializableKeyPair, EncryptedMessage
+│   ├── manager.rs            # CryptoManager struct with persistent storage
+│   ├── storage.rs            # OS Keyring + SQLite key storage
+│   └── types.rs              # SerializableKeyPair, EncryptedMessage, IdentityInfo
 └── utils/                     # Shared helpers (NEW)
     ├── mod.rs                # Re-exports
     └── helpers.rs            # get_self_id(), generate_deterministic_chat_id()
@@ -212,6 +215,11 @@ The `.vscode/settings.json` configures rust-analyzer to suppress Tauri macro war
   - AES-256-GCM authenticated encryption
   - HKDF key derivation
   - Per-chat session keys
+  - **Persistent key storage** (identity keys survive app restarts)
+    - Private keys stored in OS Keyring (Windows Credential Manager, macOS Keychain, Linux Secret Service)
+    - Public keys stored in SQLite (`public_keys` table)
+    - Peer public keys cached and persisted for automatic session re-derivation
+    - Uses `keyring` crate for cross-platform secure storage
 - **Multi-instance P2P messaging working**
   - First instance becomes WebSocket server (port 9001)
   - Second instance auto-connects as client relay
@@ -261,7 +269,7 @@ Test instance uses separate database and target directory (`target-test/`).
 ## Next Steps
 - [ ] Voice message recording
 - [ ] File/image upload and preview
-- [ ] Store encryption keys persistently
+- [x] Store encryption keys persistently
 - [ ] Key verification UI (safety numbers)
 - [ ] Auto network discovery for LAN peers (mDNS/broadcast)
 
@@ -273,4 +281,4 @@ Test instance uses separate database and target directory (`target-test/`).
 - Custom titlebar requires capabilities/default.json for window permissions in Tauri 2.0
 
 ## Important
-After implementing a feature do not forget to update this file without fail.
+After implementing a feature, I will test it thoroughly, after its been tested with no issues/bugs you can finally update this file and give me a good commit message without referencing the claude code in any ways.

@@ -21,3 +21,11 @@ pub struct KeyPair {
     pub public_key: PublicKey,
     pub private_key: StaticSecret,
 }
+
+/// Result of initializing identity from persistent storage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdentityInfo {
+    pub user_id: String,
+    pub public_key_hex: String,
+    pub is_new: bool,
+}

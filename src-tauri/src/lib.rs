@@ -21,8 +21,8 @@ pub fn run() {
                 }
             });
 
-            // Initialize crypto (generate identity keys if needed)
-            let _ = crypto::get_crypto_manager().generate_identity_key();
+            // Note: Crypto identity is now initialized from frontend via init_identity command
+            // This allows persistent key storage in OS keyring
 
             Ok(())
         })
@@ -56,6 +56,11 @@ pub fn run() {
             crypto::encrypt_message,
             crypto::decrypt_message,
             crypto::has_chat_session,
+            // Persistent key commands
+            crypto::init_identity,
+            crypto::store_peer_key,
+            crypto::get_peer_key,
+            crypto::ensure_chat_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
