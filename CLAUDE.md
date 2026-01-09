@@ -12,6 +12,38 @@ Act as a principal engineer.
 - Always follow existing patterns in this repo (services/, split stores, commands/ modules).
 - Any OS/network/filesystem work belongs in Rust/Tauri commands, not React.
 
+## Token Efficiency Rules (MUST FOLLOW)
+To minimize token usage and keep work fast and precise:
+
+1) **Limit file reads**
+   - Do not inspect more than **5 files** unless absolutely necessary.
+   - Prefer the smallest set of relevant files.
+   - If unsure where code lives, first search by keyword and list only the top relevant files.
+
+2) **No unnecessary output**
+   - Do not print full file contents unless explicitly requested.
+   - Prefer **unified diffs** or only the **changed sections**.
+   - Avoid repeating unchanged code.
+
+3) **Keep responses short**
+   - Default to brief answers and bullet points.
+   - Avoid long explanations unless asked.
+   - If explanation is needed: keep it under ~10 lines.
+
+4) **Two-step workflow for large tasks**
+   - For complex tasks, first provide:
+     - Root cause / design notes (short)
+     - Plan (max 6 bullets)
+   - Only then implement.
+
+5) **Avoid back-and-forth**
+   - Ask clarifying questions only if blocked.
+   - If not blocked, make the safest assumption and state it in one line.
+
+6) **Scope control**
+   - No refactors, cleanup, formatting, or documentation updates unless requested.
+   - One task per change set.
+
 ## Required workflow (always)
 1) Restate goal and expected behavior.
 2) Identify relevant files and inspect them first.
@@ -22,12 +54,12 @@ Act as a principal engineer.
 
 ## Output format
 - Summary
+- **Context files read**: List which context files you read for this task
 - Root cause / design notes
 - Plan
 - Changes (file-by-file)
 - Tests / verification steps
 - Edge cases + risks
-- **Context files read**: List which context files you read for this task
 
 ## When uncertain
 - Ask for the missing file/snippet.
@@ -38,6 +70,7 @@ Act as a principal engineer.
 ## Context Files (MUST READ as applicable)
 
 The following context files contain detailed documentation. **You MUST read the relevant files before starting any task.**
+If required reads are not followed, stop and read them before proceeding.
 
 | File | When to Read |
 |------|--------------|

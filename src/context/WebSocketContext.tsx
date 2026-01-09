@@ -153,6 +153,12 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           if (data.success) {
             console.log("WebSocket authenticated successfully");
             setIsConnected(true);
+            // Broadcast our presence to all connected peers
+            if (currentUser) {
+              invoke("broadcast_presence", { userId: currentUser.id }).catch((e) =>
+                console.error("Failed to broadcast presence:", e)
+              );
+            }
           } else {
             console.error("WebSocket authentication failed:", data.message);
             setIsConnected(false);

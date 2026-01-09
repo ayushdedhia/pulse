@@ -33,4 +33,11 @@ export const websocketService = {
   getAuthToken: (): Promise<string> => {
     return invoke<string>("get_ws_auth_token");
   },
+
+  /**
+   * Broadcast current user's online presence to all connected peers
+   */
+  broadcastPresence: (userId: string): Promise<void> => {
+    return invoke<void>("broadcast_presence", { userId });
+  },
 };

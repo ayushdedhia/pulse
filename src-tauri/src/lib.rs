@@ -96,6 +96,7 @@ pub fn run() {
             commands::websocket::get_network_status,
             commands::websocket::connect_to_peer,
             commands::websocket::get_ws_auth_token,
+            commands::websocket::broadcast_presence,
             // Crypto commands
             crypto::generate_keys,
             crypto::get_public_key,

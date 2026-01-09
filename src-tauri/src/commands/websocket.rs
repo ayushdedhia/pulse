@@ -92,3 +92,14 @@ pub async fn connect_to_peer(ip: String, port: Option<u16>) -> Result<(), String
 pub fn get_ws_auth_token() -> Result<String, String> {
     Ok(get_session_token().to_string())
 }
+
+/// Broadcast current user's online presence to all connected peers
+#[tauri::command]
+pub fn broadcast_presence(user_id: String) -> Result<(), String> {
+    let msg = WsMessage::Presence {
+        user_id,
+        is_online: true,
+        last_seen: None,
+    };
+    get_ws_server().broadcast(msg)
+}
