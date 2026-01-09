@@ -1,9 +1,15 @@
 use crate::db::Database;
 use crate::models::User;
+use crate::utils::validation::{
+    validate_about, validate_phone, validate_url, validate_user_id, validate_user_name,
+};
 use tauri::State;
 
 #[tauri::command]
 pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String> {
+    // Validate input
+    validate_user_id(&user_id)?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.query_row(
@@ -48,6 +54,12 @@ pub fn get_current_user(db: State<'_, Database>) -> Result<User, String> {
 
 #[tauri::command]
 pub fn update_user(db: State<'_, Database>, user: User) -> Result<bool, String> {
+    // Validate input
+    validate_user_id(&user.id)?;
+    validate_user_name(&user.name)?;
+    validate_about(user.about.as_deref())?;
+    validate_url(user.avatar_url.as_deref())?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.execute(
@@ -98,6 +110,11 @@ pub fn add_contact(
     name: String,
     phone: Option<String>,
 ) -> Result<User, String> {
+    // Validate input
+    validate_user_id(&id)?;
+    validate_user_name(&name)?;
+    validate_phone(phone.as_deref())?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().timestamp_millis();
 

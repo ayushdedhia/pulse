@@ -1,6 +1,7 @@
 import { format, isToday, isYesterday } from "date-fns";
 import type { CSSProperties } from "react";
 
+import { useWebSocketContext } from "../../context/WebSocketContext";
 import type { Chat } from "../../types";
 import { MessageStatus } from "../chat/MessageStatus";
 import { Avatar } from "../common/Avatar";
@@ -13,6 +14,8 @@ interface ChatListItemProps {
 }
 
 export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemProps) {
+  const { onlineUsers } = useWebSocketContext();
+
   const displayName = chat.chat_type === "group"
     ? chat.name
     : chat.participant?.name || "Unknown";
@@ -21,7 +24,9 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
     ? chat.avatar_url
     : chat.participant?.avatar_url;
 
-  const isOnline = chat.chat_type === "individual" && chat.participant?.is_online;
+  // Check online status from WebSocket context (real-time)
+  const participantId = chat.participant?.id;
+  const isOnline = chat.chat_type === "individual" && participantId && onlineUsers.has(participantId);
 
   const lastMessage = chat.last_message;
   const lastMessageTime = lastMessage ? formatMessageTime(lastMessage.created_at) : "";
@@ -61,7 +66,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 py-3 border-b border-[var(--border-light)]">
+      <div className="flex-1 min-w-0 py-3">
         <div className="flex items-center justify-between gap-2 mb-0.5">
           <span className={`font-medium truncate ${hasUnread ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"}`}>
             {displayName}

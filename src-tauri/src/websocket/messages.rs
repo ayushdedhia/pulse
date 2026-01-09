@@ -37,7 +37,23 @@ pub enum WsMessage {
         message_ids: Vec<String>,
     },
     #[serde(rename = "connect")]
-    Connect { user_id: String },
+    Connect {
+        user_id: String,
+        /// Authentication token - required for WebSocket connection
+        #[serde(default)]
+        auth_token: Option<String>,
+    },
+    #[serde(rename = "auth_response")]
+    AuthResponse {
+        success: bool,
+        message: String,
+    },
     #[serde(rename = "error")]
     Error { message: String },
+    /// Peer-to-peer connection with token exchange
+    #[serde(rename = "peer_connect")]
+    PeerConnect {
+        /// The connecting peer's token to be added to trusted tokens
+        peer_token: String,
+    },
 }

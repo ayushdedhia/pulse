@@ -11,6 +11,8 @@
     "tauri:test": "set CARGO_TARGET_DIR=%cd%\\target-test&& tauri dev --config src-tauri/tauri.test.conf.json --no-dev-server"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-shell": "^2.0.0",
     "date-fns": "^3.6.0",

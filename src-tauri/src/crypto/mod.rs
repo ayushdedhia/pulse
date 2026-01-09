@@ -9,6 +9,7 @@ pub use types::IdentityInfo;
 use crate::db::Database;
 use std::sync::OnceLock;
 use tauri::State;
+use tracing::{debug, info};
 
 // Global crypto manager instance
 static CRYPTO_MANAGER: OnceLock<CryptoManager> = OnceLock::new();
@@ -80,6 +81,12 @@ pub fn init_identity(db: State<'_, Database>) -> Result<IdentityInfo, String> {
     // Initialize identity (load or generate)
     let info = manager.init_identity(&conn, &user_id)?;
 
+    if info.is_new {
+        info!(user_id = %user_id, "Generated new identity keys");
+    } else {
+        debug!(user_id = %user_id, "Loaded existing identity keys");
+    }
+
     // Also load all peer public keys into cache
     manager.load_peer_keys_from_db(&conn)?;
 
@@ -96,6 +103,7 @@ pub fn store_peer_key(
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let key_bytes = hex::decode(&public_key_hex).map_err(|e| e.to_string())?;
 
+    debug!(peer_user_id = %peer_user_id, "Storing peer public key");
     get_crypto_manager().store_peer_public_key(&conn, &peer_user_id, &key_bytes)?;
     Ok(true)
 }

@@ -1,8 +1,75 @@
+use crate::crypto::get_crypto_manager;
 use crate::db::Database;
 use crate::models::{Message, User};
+use crate::utils::validation::{validate_chat_id, validate_message, validate_user_id};
 use crate::utils::{generate_deterministic_chat_id, get_self_id};
 use crate::websocket::{get_ws_server, WsMessage};
 use tauri::State;
+
+/// Helper to get the peer user ID from a chat (for 1-on-1 chats)
+fn get_peer_user_id(conn: &rusqlite::Connection, chat_id: &str, self_id: &str) -> Option<String> {
+    conn.query_row(
+        "SELECT user_id FROM chat_participants WHERE chat_id = ?1 AND user_id != ?2 LIMIT 1",
+        [chat_id, self_id],
+        |row| row.get(0),
+    )
+    .ok()
+}
+
+/// Encrypt message content if a session exists for the chat
+fn encrypt_content(
+    conn: &rusqlite::Connection,
+    content: &str,
+    chat_id: &str,
+    self_id: &str,
+) -> Result<String, String> {
+    let manager = get_crypto_manager();
+
+    // Try to get peer's user ID and ensure session exists
+    if let Some(peer_id) = get_peer_user_id(conn, chat_id, self_id) {
+        if manager.ensure_session(conn, &peer_id, chat_id)? {
+            // Session exists, encrypt the message
+            let encrypted = manager.encrypt(content, chat_id)?;
+            let json = serde_json::to_string(&encrypted).map_err(|e| e.to_string())?;
+            return Ok(format!("enc:{}", json));
+        }
+    }
+
+    // No session available, store as plaintext (for backward compatibility)
+    // In production, you might want to reject unencrypted messages
+    Ok(content.to_string())
+}
+
+/// Decrypt message content if it's encrypted
+fn decrypt_content(
+    conn: &rusqlite::Connection,
+    content: &str,
+    chat_id: &str,
+    self_id: &str,
+) -> String {
+    // Check if content is encrypted (prefixed with "enc:")
+    if let Some(encrypted_json) = content.strip_prefix("enc:") {
+        let manager = get_crypto_manager();
+
+        // Try to ensure session exists
+        if let Some(peer_id) = get_peer_user_id(conn, chat_id, self_id) {
+            let _ = manager.ensure_session(conn, &peer_id, chat_id);
+        }
+
+        // Try to decrypt
+        if let Ok(encrypted) = serde_json::from_str(encrypted_json) {
+            if let Ok(plaintext) = manager.decrypt(&encrypted, chat_id) {
+                return plaintext;
+            }
+        }
+
+        // Decryption failed - return placeholder
+        "[Encrypted message - unable to decrypt]".to_string()
+    } else {
+        // Not encrypted, return as-is
+        content.to_string()
+    }
+}
 
 #[tauri::command]
 pub fn get_messages(
@@ -11,7 +78,11 @@ pub fn get_messages(
     limit: i32,
     offset: i32,
 ) -> Result<Vec<Message>, String> {
+    // Validate input
+    validate_chat_id(&chat_id)?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let self_id = get_self_id(&conn)?;
 
     let mut stmt = conn
         .prepare(
@@ -26,7 +97,7 @@ pub fn get_messages(
         )
         .map_err(|e| e.to_string())?;
 
-    let messages = stmt
+    let messages: Vec<Message> = stmt
         .query_map([&chat_id, &limit.to_string(), &offset.to_string()], |row| {
             Ok(Message {
                 id: row.get(0)?,
@@ -54,7 +125,18 @@ pub fn get_messages(
         .filter_map(|r| r.ok())
         .collect();
 
-    Ok(messages)
+    // Decrypt messages
+    let decrypted_messages: Vec<Message> = messages
+        .into_iter()
+        .map(|mut msg| {
+            if let Some(ref content) = msg.content {
+                msg.content = Some(decrypt_content(&conn, content, &chat_id, &self_id));
+            }
+            msg
+        })
+        .collect();
+
+    Ok(decrypted_messages)
 }
 
 #[tauri::command]
@@ -64,16 +146,23 @@ pub fn send_message(
     content: String,
     message_type: String,
 ) -> Result<Message, String> {
+    // Validate input
+    validate_chat_id(&chat_id)?;
+    validate_message(&content)?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().timestamp_millis();
     let msg_id = uuid::Uuid::new_v4().to_string();
 
     let self_id = get_self_id(&conn)?;
 
+    // Encrypt the message content before storing
+    let encrypted_content = encrypt_content(&conn, &content, &chat_id, &self_id)?;
+
     conn.execute(
         "INSERT INTO messages (id, chat_id, sender_id, content, message_type, status, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, 'sent', ?6)",
-        (&msg_id, &chat_id, &self_id, &content, &message_type, now),
+        (&msg_id, &chat_id, &self_id, &encrypted_content, &message_type, now),
     )
     .map_err(|e| e.to_string())?;
 
@@ -174,9 +263,14 @@ pub fn update_message_status(
     Ok(true)
 }
 
+/// Search messages by content
+/// Note: With E2E encryption, searching within encrypted content has limitations.
+/// Only unencrypted messages or messages that match the encrypted pattern will be found.
+/// For full search capability, consider implementing a local search index.
 #[tauri::command]
 pub fn search_messages(db: State<'_, Database>, query: String) -> Result<Vec<Message>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let self_id = get_self_id(&conn)?;
     let search_pattern = format!("%{}%", query);
 
     let mut stmt = conn
@@ -192,7 +286,7 @@ pub fn search_messages(db: State<'_, Database>, query: String) -> Result<Vec<Mes
         )
         .map_err(|e| e.to_string())?;
 
-    let messages = stmt
+    let messages: Vec<Message> = stmt
         .query_map([&search_pattern], |row| {
             Ok(Message {
                 id: row.get(0)?,
@@ -220,7 +314,18 @@ pub fn search_messages(db: State<'_, Database>, query: String) -> Result<Vec<Mes
         .filter_map(|r| r.ok())
         .collect();
 
-    Ok(messages)
+    // Decrypt messages for display
+    let decrypted_messages: Vec<Message> = messages
+        .into_iter()
+        .map(|mut msg| {
+            if let Some(ref content) = msg.content {
+                msg.content = Some(decrypt_content(&conn, content, &msg.chat_id, &self_id));
+            }
+            msg
+        })
+        .collect();
+
+    Ok(decrypted_messages)
 }
 
 /// Receive an incoming message from WebSocket and save it to local database
@@ -234,6 +339,11 @@ pub fn receive_message(
     content: String,
     timestamp: i64,
 ) -> Result<Message, String> {
+    // Validate input
+    validate_user_id(&sender_id)?;
+    // Note: content might be encrypted so we skip content validation here
+    // The encryption layer handles its own size limits
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     let self_id = get_self_id(&conn)?;
@@ -301,7 +411,8 @@ pub fn receive_message(
         .map_err(|e| e.to_string())?;
     }
 
-    // Insert the message
+    // The content might be encrypted (prefixed with "enc:") from the sender
+    // Store as-is in the database (preserving encryption)
     conn.execute(
         "INSERT INTO messages (id, chat_id, sender_id, content, message_type, status, created_at)
          VALUES (?1, ?2, ?3, ?4, 'text', 'received', ?5)",
@@ -339,16 +450,19 @@ pub fn receive_message(
     let delivery_receipt = WsMessage::DeliveryReceipt {
         message_id: id.clone(),
         chat_id: chat_id.clone(),
-        delivered_to: self_id,
+        delivered_to: self_id.clone(),
     };
     let _ = get_ws_server().broadcast(delivery_receipt);
+
+    // Decrypt content for the returned message (so UI can display it)
+    let decrypted_content = decrypt_content(&conn, &content, &chat_id, &self_id);
 
     Ok(Message {
         id,
         chat_id,
         sender_id,
         sender,
-        content: Some(content),
+        content: Some(decrypted_content),
         message_type: "text".to_string(),
         media_url: None,
         reply_to_id: None,

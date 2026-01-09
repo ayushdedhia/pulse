@@ -1,5 +1,6 @@
 import { MoreVertical, Phone, Search, Video } from "lucide-react";
 
+import { useWebSocketContext } from "../../context/WebSocketContext";
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
 import { formatLastSeen } from "../../utils/formatTime";
@@ -9,6 +10,7 @@ export function ChatHeader() {
   const activeChat = useChatStore((state) => state.activeChat);
   const setShowContactInfo = useUIStore((state) => state.setShowContactInfo);
   const showContactInfo = useUIStore((state) => state.showContactInfo);
+  const { onlineUsers } = useWebSocketContext();
 
   if (!activeChat) return null;
 
@@ -20,7 +22,9 @@ export function ChatHeader() {
     ? activeChat.avatar_url
     : activeChat.participant?.avatar_url;
 
-  const isOnline = activeChat.chat_type === "individual" && activeChat.participant?.is_online;
+  // Check online status from WebSocket context (real-time) rather than stored data
+  const participantId = activeChat.participant?.id;
+  const isOnline = activeChat.chat_type === "individual" && participantId && onlineUsers.has(participantId);
 
   const status = activeChat.chat_type === "group"
     ? "Click here for group info"

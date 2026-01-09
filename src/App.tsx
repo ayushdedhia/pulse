@@ -8,23 +8,19 @@ import { useUIStore } from "./store/uiStore";
 
 function App() {
   const theme = useUIStore((state) => state.theme);
-  const { isInitialized, isNewIdentity, publicKey } = useCrypto();
+  const { isInitialized, isNewIdentity } = useCrypto();
 
   useEffect(() => {
     useChatStore.getState().loadChats();
   }, []);
 
-  // Log crypto initialization status
+  // Crypto initialization - no longer logging sensitive key info
   useEffect(() => {
-    if (isInitialized) {
-      console.log(
-        isNewIdentity
-          ? "🔐 Generated new identity keys (stored in OS keyring)"
-          : "🔐 Loaded existing identity keys from storage"
-      );
-      console.log("📋 Public key:", publicKey?.substring(0, 16) + "...");
+    if (isInitialized && isNewIdentity) {
+      // Only log on first-time key generation, without exposing key material
+      console.log("Identity keys initialized");
     }
-  }, [isInitialized, isNewIdentity, publicKey]);
+  }, [isInitialized, isNewIdentity]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");

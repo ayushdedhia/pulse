@@ -1,4 +1,4 @@
-import { Camera, FileText, Image, Mic, Plus, Send, Smile, X } from "lucide-react";
+import { Camera, Contact, FileText, Image, MapPin, Mic, Plus, Send, Smile, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useWebSocketContext } from "../../context/WebSocketContext";
@@ -10,9 +10,19 @@ export function MessageInput() {
   const [message, setMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [isAttachMenuClosing, setIsAttachMenuClosing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<number>();
+
+  // Handle attachment menu close with animation
+  const closeAttachMenu = () => {
+    setIsAttachMenuClosing(true);
+    setTimeout(() => {
+      setShowAttachMenu(false);
+      setIsAttachMenuClosing(false);
+    }, 150);
+  };
 
   const activeChat = useChatStore((state) => state.activeChat);
   const sendMessage = useMessageStore((state) => state.sendMessage);
@@ -81,7 +91,7 @@ export function MessageInput() {
     <div className="relative bg-[var(--bg-secondary)] px-4 py-[10px] transition-theme">
       {/* Emoji Picker */}
       {showEmojiPicker && (
-        <div className="absolute z-50 mb-2 bottom-full left-4 animate-scale-in">
+        <div className="absolute z-50 mb-2 bottom-full left-0 animate-scale-in">
           <EmojiPicker
             onSelect={handleEmojiSelect}
             onClose={() => setShowEmojiPicker(false)}
@@ -95,20 +105,24 @@ export function MessageInput() {
           {/* Invisible overlay to close on outside click */}
           <div
             className="fixed inset-0 z-40"
-            onClick={() => setShowAttachMenu(false)}
+            onClick={closeAttachMenu}
           />
-          <div className="absolute z-50 mb-2 bottom-full left-16 animate-scale-in">
-            <AttachmentMenu onClose={() => setShowAttachMenu(false)} />
+          <div className={`absolute z-50 mb-2 bottom-full left-16 transition-all duration-150 ${
+            isAttachMenuClosing
+              ? "opacity-0 scale-95 translate-y-2"
+              : "animate-scale-in"
+          }`}>
+            <AttachmentMenu onClose={closeAttachMenu} />
           </div>
         </>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center">
         {/* Emoji button */}
         <button
           onClick={() => {
             setShowEmojiPicker(!showEmojiPicker);
-            setShowAttachMenu(false);
+            if (showAttachMenu) closeAttachMenu();
           }}
           className={`
             w-[42px] h-[42px] flex items-center justify-center rounded-full
@@ -129,7 +143,7 @@ export function MessageInput() {
             setShowEmojiPicker(false);
           }}
           className={`
-            w-[42px] h-[42px] flex items-center justify-center rounded-full
+            flex items-center justify-center rounded-full p-2
             transition-all duration-200 flex-shrink-0 active-press
             ${showAttachMenu
               ? "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
@@ -137,11 +151,11 @@ export function MessageInput() {
             }
           `}
         >
-          {showAttachMenu ? <X size={26} strokeWidth={1.5} /> : <Plus size={26} strokeWidth={1.5} />}
+          {showAttachMenu ? <X size={26} strokeWidth={1.5} /> : <Plus size={26} strokeWidth={1.5} className="-translate-x-[0.6px]" />}
         </button>
 
         {/* Input field */}
-        <div className="flex-1 flex items-center bg-[var(--bg-primary)] rounded-[8px] px-4 min-h-[42px] transition-all duration-200 input-focus-ring">
+        <div className="flex-1 flex items-center ml-2 mr-3 bg-[var(--bg-primary)] rounded-[8px] px-4 min-h-[42px] transition-all duration-200 input-focus-ring">
           <textarea
             ref={textareaRef}
             value={message}
@@ -163,7 +177,7 @@ export function MessageInput() {
             disabled={isSending}
             className="w-[42px] h-[42px] flex items-center justify-center rounded-full bg-[var(--accent)] text-white transition-all duration-200 active-press hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <Send size={20} strokeWidth={2} className="translate-x-[1px]" />
+            <Send size={20} strokeWidth={2} className="-translate-x-[1.5px]" />
           </button>
         ) : (
           <button
@@ -183,30 +197,38 @@ interface AttachmentMenuProps {
 
 function AttachmentMenu({ onClose }: AttachmentMenuProps) {
   const items = [
-    { icon: <Image size={22} />, label: "Photos & Videos", color: "#7C3AED" },
-    { icon: <Camera size={22} />, label: "Camera", color: "#EC4899" },
-    { icon: <FileText size={22} />, label: "Document", color: "#6366F1" },
+    { icon: <FileText size={24} />, label: "Document", color: "#7C3AED" },
+    { icon: <Camera size={24} />, label: "Camera", color: "#EC4899" },
+    { icon: <Image size={24} />, label: "Gallery", color: "#C026D3" },
+    { icon: <Contact size={24} />, label: "Contact", color: "#0EA5E9" },
+    { icon: <MapPin size={24} />, label: "Location", color: "#22C55E" },
   ];
 
   return (
-    <div className="bg-[var(--bg-tertiary)] rounded-xl shadow-xl border border-[var(--border)] p-2 min-w-[180px]">
-      {items.map((item, index) => (
-        <button
-          key={index}
-          onClick={onClose}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors group"
-        >
-          <span
-            className="flex items-center justify-center w-10 h-10 text-white transition-transform rounded-full group-hover:scale-110"
-            style={{ backgroundColor: item.color }}
+    <div className="bg-[var(--bg-tertiary)] rounded-2xl shadow-2xl border border-[var(--border-light)] p-4">
+      <div className="grid grid-cols-3 gap-4">
+        {items.map((item, index) => (
+          <button
+            key={index}
+            onClick={onClose}
+            className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-[var(--bg-hover)] transition-all duration-200 group"
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            {item.icon}
-          </span>
-          <span className="text-[var(--text-primary)] text-sm font-medium">
-            {item.label}
-          </span>
-        </button>
-      ))}
+            <span
+              className="flex items-center justify-center w-[52px] h-[52px] text-white rounded-full transition-all duration-200 group-hover:scale-110 group-hover:shadow-lg"
+              style={{
+                backgroundColor: item.color,
+                boxShadow: `0 4px 12px ${item.color}40`
+              }}
+            >
+              {item.icon}
+            </span>
+            <span className="text-[var(--text-secondary)] text-[11px] font-medium group-hover:text-[var(--text-primary)] transition-colors">
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

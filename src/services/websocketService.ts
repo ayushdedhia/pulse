@@ -26,4 +26,11 @@ export const websocketService = {
   connectToPeer: (ip: string, port?: number): Promise<void> => {
     return invoke<void>("connect_to_peer", { ip, port });
   },
+
+  /**
+   * Get the WebSocket authentication token for this session
+   */
+  getAuthToken: (): Promise<string> => {
+    return invoke<string>("get_ws_auth_token");
+  },
 };

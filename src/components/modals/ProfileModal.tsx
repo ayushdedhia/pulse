@@ -8,6 +8,7 @@ import { Avatar } from "../common/Avatar";
 export function ProfileModal() {
   const setShowProfile = useUIStore((state) => state.setShowProfile);
   const currentUser = useUserStore((state) => state.currentUser);
+  const updateCurrentUser = useUserStore((state) => state.updateCurrentUser);
   const [editingName, setEditingName] = useState(false);
   const [editingAbout, setEditingAbout] = useState(false);
   const [name, setName] = useState(currentUser?.name || "");
@@ -22,13 +23,17 @@ export function ProfileModal() {
     }
   };
 
-  const handleSaveName = () => {
-    // TODO: Save to backend
+  const handleSaveName = async () => {
+    if (currentUser && name.trim()) {
+      await updateCurrentUser({ ...currentUser, name: name.trim() });
+    }
     setEditingName(false);
   };
 
-  const handleSaveAbout = () => {
-    // TODO: Save to backend
+  const handleSaveAbout = async () => {
+    if (currentUser) {
+      await updateCurrentUser({ ...currentUser, about: about.trim() });
+    }
     setEditingAbout(false);
   };
 

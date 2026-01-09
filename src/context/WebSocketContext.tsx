@@ -147,6 +147,21 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             }
           }
           break;
+
+        case "auth_response":
+          // Handle authentication response
+          if (data.success) {
+            console.log("WebSocket authenticated successfully");
+            setIsConnected(true);
+          } else {
+            console.error("WebSocket authentication failed:", data.message);
+            setIsConnected(false);
+          }
+          break;
+
+        case "error":
+          console.error("WebSocket error from server:", data.message);
+          break;
       }
     },
     [currentUser]
@@ -156,19 +171,22 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const port = await invoke<number>("get_ws_port");
+      const [port, authToken] = await Promise.all([
+        invoke<number>("get_ws_port"),
+        invoke<string>("get_ws_auth_token"),
+      ]);
       const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
       ws.onopen = () => {
         console.log("WebSocket connected to port", port);
-        setIsConnected(true);
 
-        // Identify ourselves
+        // Authenticate with the server
         if (currentUser) {
           ws.send(
             JSON.stringify({
               type: "connect",
               user_id: currentUser.id,
+              auth_token: authToken,
             })
           );
         }

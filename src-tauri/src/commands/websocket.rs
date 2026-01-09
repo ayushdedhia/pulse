@@ -1,6 +1,17 @@
+use crate::crypto::get_crypto_manager;
 use crate::db::Database;
-use crate::websocket::{get_ws_server, NetworkStatus, WsMessage};
+use crate::websocket::{get_session_token, get_ws_server, NetworkStatus, WsMessage};
 use tauri::State;
+
+/// Helper to get the peer user ID from a chat (for 1-on-1 chats)
+fn get_peer_user_id(conn: &rusqlite::Connection, chat_id: &str, self_id: &str) -> Option<String> {
+    conn.query_row(
+        "SELECT user_id FROM chat_participants WHERE chat_id = ?1 AND user_id != ?2 LIMIT 1",
+        [chat_id, self_id],
+        |row| row.get(0),
+    )
+    .ok()
+}
 
 #[tauri::command]
 pub fn broadcast_message(
@@ -20,12 +31,34 @@ pub fn broadcast_message(
         )
         .unwrap_or_else(|_| "Unknown".to_string());
 
+    // Encrypt the message content before broadcasting
+    let encrypted_content = {
+        let manager = get_crypto_manager();
+        if let Some(peer_id) = get_peer_user_id(&conn, &chat_id, &sender_id) {
+            if manager.ensure_session(&conn, &peer_id, &chat_id).unwrap_or(false) {
+                if let Ok(encrypted) = manager.encrypt(&content, &chat_id) {
+                    if let Ok(json) = serde_json::to_string(&encrypted) {
+                        format!("enc:{}", json)
+                    } else {
+                        content.clone()
+                    }
+                } else {
+                    content.clone()
+                }
+            } else {
+                content.clone()
+            }
+        } else {
+            content.clone()
+        }
+    };
+
     let msg = WsMessage::ChatMessage {
         id: message_id,
         chat_id,
         sender_id,
         sender_name,
-        content,
+        content: encrypted_content,
         timestamp: chrono::Utc::now().timestamp_millis(),
     };
 
@@ -52,4 +85,10 @@ pub async fn get_network_status() -> Result<NetworkStatus, String> {
 pub async fn connect_to_peer(ip: String, port: Option<u16>) -> Result<(), String> {
     let port = port.unwrap_or(9001);
     get_ws_server().connect_to_peer(&ip, port).await
+}
+
+/// Get the WebSocket authentication token for this session
+#[tauri::command]
+pub fn get_ws_auth_token() -> Result<String, String> {
+    Ok(get_session_token().to_string())
 }

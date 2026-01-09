@@ -1,4 +1,4 @@
-import { Lock, MessageCircle } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { useChatStore } from "../../store/chatStore";
@@ -96,24 +96,16 @@ function EmptyState() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-[var(--bg-secondary)] text-center p-8 relative transition-theme">
       <div className="max-w-[420px] animate-fade-in">
-        {/* Animated Icon */}
-        <div className="relative mb-8">
-          <div className="w-[140px] h-[140px] mx-auto rounded-full bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent)]/5 flex items-center justify-center">
-            <div className="w-[100px] h-[100px] rounded-full bg-gradient-to-br from-[var(--accent)]/30 to-[var(--accent)]/10 flex items-center justify-center">
-              <MessageCircle
-                size={48}
-                className="text-[var(--accent)]"
-                strokeWidth={1.5}
-              />
-            </div>
-          </div>
-          {/* Floating dots animation */}
-          <div className="absolute top-4 left-1/2 -translate-x-12 w-3 h-3 rounded-full bg-[var(--accent)]/30 animate-bounce" style={{ animationDelay: "0s" }} />
-          <div className="absolute top-8 right-1/2 translate-x-16 w-2 h-2 rounded-full bg-[var(--accent)]/20 animate-bounce" style={{ animationDelay: "0.2s" }} />
-          <div className="absolute bottom-4 left-1/2 translate-x-8 w-2.5 h-2.5 rounded-full bg-[var(--accent)]/25 animate-bounce" style={{ animationDelay: "0.4s" }} />
+        {/* App Logo */}
+        <div className="relative -mb-4">
+          <img
+            src="/logo.png"
+            alt="Pulse"
+            className="w-[140px] h-[140px] mx-auto object-contain"
+          />
         </div>
 
-        <h1 className="text-[28px] font-light text-[var(--text-primary)] mb-3 tracking-tight">
+        <h1 className="text-[28px] font-semibold text-[var(--text-primary)] mb-3 tracking-tight">
           Pulse for Desktop
         </h1>
         <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed mb-6">

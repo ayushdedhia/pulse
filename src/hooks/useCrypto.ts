@@ -24,11 +24,7 @@ export function useCrypto() {
         setIsNewIdentity(identity.is_new);
         setIsInitialized(true);
 
-        if (identity.is_new) {
-          console.log("Generated new identity keys (stored in OS keyring)");
-        } else {
-          console.log("Loaded existing identity keys from storage");
-        }
+        // Keys loaded/generated - no logging of sensitive info
       } catch (error) {
         console.error("Failed to initialize crypto identity:", error);
         // Fallback to legacy key generation
@@ -36,7 +32,7 @@ export function useCrypto() {
           const key = await cryptoService.generateKeys();
           setPublicKey(key);
           setIsInitialized(true);
-          console.log("Fallback: Generated in-memory keys");
+          // Fallback keys generated
         } catch (genError) {
           console.error("Failed to generate keys:", genError);
         }

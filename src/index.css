@@ -463,3 +463,37 @@ textarea {
 .active-press:active {
   transform: scale(0.98);
 }
+
+/* ==================== EMOJI PICKER (emoji-mart) ==================== */
+
+.emoji-picker-container {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px var(--dropdown-shadow);
+}
+
+/* Override emoji-mart styles to match app theme */
+.emoji-picker-container em-emoji-picker {
+  --em-rgb-background: var(--bg-secondary);
+  --em-rgb-input: var(--bg-primary);
+  --em-rgb-color: var(--text-primary);
+  --em-rgb-accent: 0, 168, 132;
+  --border-radius: 12px;
+  --font-family: 'Inter', sans-serif;
+  --category-icon-size: 20px;
+  --padding: 12px;
+  border: 1px solid var(--border);
+  height: 435px;
+}
+
+/* Performance: GPU acceleration for scroll container only */
+.emoji-picker-container [data-scroll] {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Disable hover effects during scroll for better performance */
+.emoji-picker-container button {
+  will-change: transform;
+}

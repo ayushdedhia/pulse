@@ -30,6 +30,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] Dark/Light theme toggle
 - [x] Resizable chat list panel (280-500px)
 - [x] Smooth animations (fade-in, slide-up, scale-in)
+- [ ] Splash screen
 
 ### Core Features
 - [ ] User authentication (phone/email)
@@ -267,11 +268,21 @@ npm run tauri:test
 Test instance uses separate database and target directory (`target-test/`).
 
 ## Next Steps
+
+### Security Enhancements
+- [x] Implement tracing for robust logging (tracing + tracing-subscriber)
+- [ ] Add rate limiting to WebSocket server
+- [ ] Implement forward secrecy (Signal protocol ratcheting)
+- [ ] Key verification UI (safety numbers/QR codes)
+- [ ] Add zeroize for keys in memory
+
+### Features
 - [ ] Voice message recording
 - [ ] File/image upload and preview
 - [x] Store encryption keys persistently
-- [ ] Key verification UI (safety numbers)
 - [ ] Auto network discovery for LAN peers (mDNS/broadcast)
+- [ ] Edit contact details (name, phone) from chat header or contact list
+- [x] Save profile changes (name, about) in ProfileModal
 
 ## Notes
 - Offline-first architecture (local SQLite)
