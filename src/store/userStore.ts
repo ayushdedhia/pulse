@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { userService } from "../services";
+import { userService, websocketService } from "../services";
 import type { User } from "../types";
 
 interface UserStore {
@@ -8,7 +8,11 @@ interface UserStore {
   error: string | null;
 
   loadCurrentUser: () => Promise<void>;
-  updateCurrentUser: (user: User) => Promise<void>;
+  updateCurrentUser: (
+    user: User,
+    broadcast?: boolean,
+    avatarData?: string
+  ) => Promise<void>;
 }
 
 export const useUserStore = create<UserStore>((set) => ({
@@ -27,10 +31,25 @@ export const useUserStore = create<UserStore>((set) => ({
     }
   },
 
-  updateCurrentUser: async (user: User) => {
+  updateCurrentUser: async (
+    user: User,
+    broadcast = false,
+    avatarData?: string
+  ) => {
     try {
       await userService.updateUser(user);
       set({ currentUser: user });
+
+      if (broadcast) {
+        await websocketService.broadcastProfile(
+          user.id,
+          user.name,
+          user.phone,
+          user.avatar_url,
+          user.about,
+          avatarData
+        );
+      }
     } catch (error) {
       console.error("Failed to update user:", error);
     }

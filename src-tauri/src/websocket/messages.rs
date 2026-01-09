@@ -56,4 +56,15 @@ pub enum WsMessage {
         /// The connecting peer's token to be added to trusted tokens
         peer_token: String,
     },
+    /// Profile update broadcast to peers
+    #[serde(rename = "profile_update")]
+    ProfileUpdate {
+        user_id: String,
+        name: String,
+        phone: Option<String>,
+        avatar_url: Option<String>,
+        about: Option<String>,
+        /// Base64-encoded avatar image bytes (only when avatar changes)
+        avatar_data: Option<String>,
+    },
 }

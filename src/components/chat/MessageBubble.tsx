@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 
-import type { Message } from "../../types";
+import { getUserDisplayName, type Message } from "../../types";
 import { MessageStatus } from "./MessageStatus";
 
 interface MessageBubbleProps {
@@ -50,9 +50,9 @@ export function MessageBubble({ message, isOwn, showTail, isGroupChat }: Message
         {isGroupChat && !isOwn && showTail && (
           <p
             className="text-[12.5px] font-medium px-[9px] pt-[6px] pb-0"
-            style={{ color: getNameColor(message.sender?.name || "") }}
+            style={{ color: getNameColor(getUserDisplayName(message.sender)) }}
           >
-            {message.sender?.name}
+            {getUserDisplayName(message.sender)}
           </p>
         )}
 

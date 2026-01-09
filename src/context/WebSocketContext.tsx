@@ -168,6 +168,43 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         case "error":
           console.error("WebSocket error from server:", data.message);
           break;
+
+        case "profile_update":
+          // Handle profile updates from peers
+          if (data.user_id && data.user_id !== currentUser?.id) {
+            (async () => {
+              try {
+                let avatarUrl = data.avatar_url as string | undefined;
+
+                // Save avatar locally if bytes are provided
+                if (data.avatar_data) {
+                  const localPath = await invoke<string>("save_peer_avatar", {
+                    userId: data.user_id as string,
+                    avatarData: data.avatar_data as string,
+                  });
+                  avatarUrl = localPath;
+                }
+
+                // Update contact in database
+                await invoke("update_user", {
+                  user: {
+                    id: data.user_id as string,
+                    name: data.name as string,
+                    phone: data.phone as string | undefined,
+                    avatar_url: avatarUrl,
+                    about: data.about as string | undefined,
+                    is_online: true,
+                  },
+                });
+
+                // Refresh chat list to show updated names/avatars
+                getChatActions().loadChats();
+              } catch (e) {
+                console.error("Failed to process profile update:", e);
+              }
+            })();
+          }
+          break;
       }
     },
     [currentUser]

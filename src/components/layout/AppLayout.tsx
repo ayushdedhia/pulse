@@ -6,6 +6,7 @@ import { useUIStore } from "../../store/uiStore";
 import { NetworkModal } from "../modals/NetworkModal";
 import { NewChatModal } from "../modals/NewChatModal";
 import { ProfileModal } from "../modals/ProfileModal";
+import { ContactInfoPanel } from "../panels/ContactInfoPanel";
 import { ChatList } from "./ChatList";
 import { ChatWindow } from "./ChatWindow";
 import { Sidebar } from "./Sidebar";
@@ -20,6 +21,7 @@ export function AppLayout() {
   const showNewChat = useUIStore((state) => state.showNewChat);
   const showProfile = useUIStore((state) => state.showProfile);
   const showNetwork = useUIStore((state) => state.showNetwork);
+  const showContactInfo = useUIStore((state) => state.showContactInfo);
   const [chatListWidth, setChatListWidth] = useState(DEFAULT_CHAT_LIST_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -82,6 +84,9 @@ export function AppLayout() {
             <EmptyState />
           )}
         </div>
+
+        {/* Contact Info Panel (slides in from right) */}
+        {showContactInfo && activeChat && <ContactInfoPanel />}
       </div>
 
       {/* Modals */}

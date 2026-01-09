@@ -48,6 +48,8 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let app_handle = app.handle();
 
@@ -89,6 +91,9 @@ pub fn run() {
             commands::user::update_user,
             commands::user::get_contacts,
             commands::user::add_contact,
+            commands::user::save_contact,
+            commands::user::upload_avatar,
+            commands::user::save_peer_avatar,
             // WebSocket commands
             commands::websocket::broadcast_message,
             commands::websocket::get_ws_port,
@@ -97,6 +102,7 @@ pub fn run() {
             commands::websocket::connect_to_peer,
             commands::websocket::get_ws_auth_token,
             commands::websocket::broadcast_presence,
+            commands::websocket::broadcast_profile,
             // Crypto commands
             crypto::generate_keys,
             crypto::get_public_key,

@@ -103,3 +103,24 @@ pub fn broadcast_presence(user_id: String) -> Result<(), String> {
     };
     get_ws_server().broadcast(msg)
 }
+
+/// Broadcast profile update to all connected peers
+#[tauri::command]
+pub fn broadcast_profile(
+    user_id: String,
+    name: String,
+    phone: Option<String>,
+    avatar_url: Option<String>,
+    about: Option<String>,
+    avatar_data: Option<String>,
+) -> Result<(), String> {
+    let msg = WsMessage::ProfileUpdate {
+        user_id,
+        name,
+        phone,
+        avatar_url,
+        about,
+        avatar_data,
+    };
+    get_ws_server().broadcast(msg)
+}

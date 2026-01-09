@@ -3,7 +3,10 @@ use crate::models::User;
 use crate::utils::validation::{
     validate_about, validate_phone, validate_url, validate_user_id, validate_user_name,
 };
-use tauri::State;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use std::fs;
+use std::path::Path;
+use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]
 pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String> {
@@ -13,17 +16,18 @@ pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.query_row(
-        "SELECT id, name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
         [&user_id],
         |row| {
             Ok(User {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                phone: row.get(2)?,
-                avatar_url: row.get(3)?,
-                about: row.get(4)?,
-                last_seen: row.get(5)?,
-                is_online: row.get::<_, i32>(6)? == 1,
+                display_name: row.get(2)?,
+                phone: row.get(3)?,
+                avatar_url: row.get(4)?,
+                about: row.get(5)?,
+                last_seen: row.get(6)?,
+                is_online: row.get::<_, i32>(7)? == 1,
             })
         },
     )
@@ -35,17 +39,18 @@ pub fn get_current_user(db: State<'_, Database>) -> Result<User, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.query_row(
-        "SELECT id, name, phone, avatar_url, about, last_seen, is_online FROM users WHERE is_self = 1",
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE is_self = 1",
         [],
         |row| {
             Ok(User {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                phone: row.get(2)?,
-                avatar_url: row.get(3)?,
-                about: row.get(4)?,
-                last_seen: row.get(5)?,
-                is_online: row.get::<_, i32>(6)? == 1,
+                display_name: row.get(2)?,
+                phone: row.get(3)?,
+                avatar_url: row.get(4)?,
+                about: row.get(5)?,
+                last_seen: row.get(6)?,
+                is_online: row.get::<_, i32>(7)? == 1,
             })
         },
     )
@@ -63,8 +68,14 @@ pub fn update_user(db: State<'_, Database>, user: User) -> Result<bool, String> 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.execute(
-        "UPDATE users SET name = ?1, avatar_url = ?2, about = ?3 WHERE id = ?4",
-        (&user.name, &user.avatar_url, &user.about, &user.id),
+        "UPDATE users SET name = ?1, phone = ?2, avatar_url = ?3, about = ?4 WHERE id = ?5",
+        (
+            &user.name,
+            &user.phone,
+            &user.avatar_url,
+            &user.about,
+            &user.id,
+        ),
     )
     .map_err(|e| e.to_string())?;
 
@@ -77,10 +88,10 @@ pub fn get_contacts(db: State<'_, Database>) -> Result<Vec<User>, String> {
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, name, phone, avatar_url, about, last_seen, is_online
+            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online
              FROM users
              WHERE is_self = 0
-             ORDER BY name",
+             ORDER BY COALESCE(display_name, name)",
         )
         .map_err(|e| e.to_string())?;
 
@@ -89,11 +100,12 @@ pub fn get_contacts(db: State<'_, Database>) -> Result<Vec<User>, String> {
             Ok(User {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                phone: row.get(2)?,
-                avatar_url: row.get(3)?,
-                about: row.get(4)?,
-                last_seen: row.get(5)?,
-                is_online: row.get::<_, i32>(6)? == 1,
+                display_name: row.get(2)?,
+                phone: row.get(3)?,
+                avatar_url: row.get(4)?,
+                about: row.get(5)?,
+                last_seen: row.get(6)?,
+                is_online: row.get::<_, i32>(7)? == 1,
             })
         })
         .map_err(|e| e.to_string())?
@@ -137,10 +149,179 @@ pub fn add_contact(
     Ok(User {
         id,
         name,
+        display_name: None,
         phone,
         avatar_url: Some("".to_string()),
         about: Some("Hey there! I am using Pulse".to_string()),
         last_seen: Some(now),
         is_online: false,
     })
+}
+
+/// Save a contact with a custom display name (alias)
+/// This sets the display_name field which overrides the original name in the UI
+#[tauri::command]
+pub fn save_contact(
+    db: State<'_, Database>,
+    user_id: String,
+    display_name: String,
+) -> Result<User, String> {
+    validate_user_id(&user_id)?;
+    validate_user_name(&display_name)?;
+
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    // Check if user exists
+    let exists: bool = conn
+        .query_row("SELECT 1 FROM users WHERE id = ?1", [&user_id], |_| Ok(true))
+        .unwrap_or(false);
+
+    if !exists {
+        return Err("User not found".to_string());
+    }
+
+    // Update display_name
+    conn.execute(
+        "UPDATE users SET display_name = ?1 WHERE id = ?2",
+        (&display_name, &user_id),
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Return updated user
+    conn.query_row(
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
+        [&user_id],
+        |row| {
+            Ok(User {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                display_name: row.get(2)?,
+                phone: row.get(3)?,
+                avatar_url: row.get(4)?,
+                about: row.get(5)?,
+                last_seen: row.get(6)?,
+                is_online: row.get::<_, i32>(7)? == 1,
+            })
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+const MAX_AVATAR_SIZE: usize = 512 * 1024; // 512KB max
+const ALLOWED_EXTENSIONS: [&str; 4] = ["png", "jpg", "jpeg", "webp"];
+
+#[tauri::command]
+pub fn upload_avatar(app: AppHandle, source_path: String) -> Result<String, String> {
+    // Validate source path exists
+    let source = Path::new(&source_path);
+    if !source.exists() {
+        return Err("Source file does not exist".to_string());
+    }
+
+    // Validate file extension
+    let ext = source
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .ok_or("Invalid file extension")?;
+
+    if !ALLOWED_EXTENSIONS.contains(&ext.as_str()) {
+        return Err(format!(
+            "Invalid file type. Allowed: {}",
+            ALLOWED_EXTENSIONS.join(", ")
+        ));
+    }
+
+    // Validate file size
+    let metadata = fs::metadata(source).map_err(|e| e.to_string())?;
+    if metadata.len() as usize > MAX_AVATAR_SIZE {
+        return Err(format!(
+            "File too large. Maximum size: {}KB",
+            MAX_AVATAR_SIZE / 1024
+        ));
+    }
+
+    // Create avatars directory
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let avatars_dir = app_dir.join("avatars");
+    fs::create_dir_all(&avatars_dir).map_err(|e| e.to_string())?;
+
+    // Generate unique filename
+    let filename = format!("{}.{}", uuid::Uuid::new_v4(), ext);
+    let dest_path = avatars_dir.join(&filename);
+
+    // Copy file
+    fs::copy(source, &dest_path).map_err(|e| e.to_string())?;
+
+    // Return the destination path as string
+    dest_path
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or("Invalid path encoding".to_string())
+}
+
+#[tauri::command]
+pub fn save_peer_avatar(
+    app: AppHandle,
+    user_id: String,
+    avatar_data: String,
+) -> Result<String, String> {
+    // Validate user ID
+    validate_user_id(&user_id)?;
+
+    // Decode base64
+    let bytes = BASE64
+        .decode(&avatar_data)
+        .map_err(|e| format!("Invalid base64 data: {}", e))?;
+
+    // Validate size
+    if bytes.len() > MAX_AVATAR_SIZE {
+        return Err(format!(
+            "Avatar too large. Maximum size: {}KB",
+            MAX_AVATAR_SIZE / 1024
+        ));
+    }
+
+    // Create avatars directory
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let avatars_dir = app_dir.join("avatars");
+    fs::create_dir_all(&avatars_dir).map_err(|e| e.to_string())?;
+
+    // Detect image format from magic bytes and save with appropriate extension
+    let ext = detect_image_format(&bytes).unwrap_or("png");
+    let filename = format!("{}.{}", user_id, ext);
+    let dest_path = avatars_dir.join(&filename);
+
+    // Write file
+    fs::write(&dest_path, &bytes).map_err(|e| e.to_string())?;
+
+    dest_path
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or("Invalid path encoding".to_string())
+}
+
+fn detect_image_format(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.len() < 4 {
+        return None;
+    }
+    // PNG: 89 50 4E 47
+    if bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+        return Some("png");
+    }
+    // JPEG: FF D8 FF
+    if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Some("jpg");
+    }
+    // WebP: RIFF....WEBP
+    if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return Some("webp");
+    }
+    None
 }

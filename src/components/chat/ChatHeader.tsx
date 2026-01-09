@@ -3,6 +3,7 @@ import { MoreVertical, Phone, Search, Video } from "lucide-react";
 import { useWebSocketContext } from "../../context/WebSocketContext";
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
+import { getUserDisplayName } from "../../types";
 import { formatLastSeen } from "../../utils/formatTime";
 import { Avatar } from "../common/Avatar";
 
@@ -16,7 +17,7 @@ export function ChatHeader() {
 
   const displayName = activeChat.chat_type === "group"
     ? activeChat.name
-    : activeChat.participant?.name || "Unknown";
+    : getUserDisplayName(activeChat.participant);
 
   const avatarUrl = activeChat.chat_type === "group"
     ? activeChat.avatar_url

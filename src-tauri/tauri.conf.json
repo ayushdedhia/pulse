@@ -22,7 +22,8 @@
         "fullscreen": false,
         "decorations": false,
         "transparent": false,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "backgroundColor": [17, 27, 33, 255]
       }
     ],
     "security": {

@@ -92,3 +92,7 @@ State is split by domain for better separation of concerns:
 - Do NOT invent APIs, commands, types, or file paths.
 - If touching Rust commands, update the corresponding frontend service wrapper.
 - If adding new commands, update registration + types + service exports.
+
+## Styling Conventions
+- **Tailwind classes**: Always write on a single line, never split across multiple lines.
+- **Conditional classes**: Use `cn()` utility for dynamic/conditional class merging.

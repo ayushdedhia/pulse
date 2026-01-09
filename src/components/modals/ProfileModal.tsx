@@ -1,6 +1,9 @@
+import { open } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 import { ArrowLeft, Camera, Check, Copy, Pencil } from "lucide-react";
 import { useState } from "react";
 
+import { userService } from "../../services";
 import { useUIStore } from "../../store/uiStore";
 import { useUserStore } from "../../store/userStore";
 import { Avatar } from "../common/Avatar";
@@ -9,11 +12,15 @@ export function ProfileModal() {
   const setShowProfile = useUIStore((state) => state.setShowProfile);
   const currentUser = useUserStore((state) => state.currentUser);
   const updateCurrentUser = useUserStore((state) => state.updateCurrentUser);
+
   const [editingName, setEditingName] = useState(false);
   const [editingAbout, setEditingAbout] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
   const [name, setName] = useState(currentUser?.name || "");
   const [about, setAbout] = useState(currentUser?.about || "");
+  const [phone, setPhone] = useState(currentUser?.phone || "");
   const [copied, setCopied] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const handleCopyId = async () => {
     if (currentUser?.id) {
@@ -25,16 +32,65 @@ export function ProfileModal() {
 
   const handleSaveName = async () => {
     if (currentUser && name.trim()) {
-      await updateCurrentUser({ ...currentUser, name: name.trim() });
+      await updateCurrentUser({ ...currentUser, name: name.trim() }, true);
     }
     setEditingName(false);
   };
 
   const handleSaveAbout = async () => {
     if (currentUser) {
-      await updateCurrentUser({ ...currentUser, about: about.trim() });
+      await updateCurrentUser({ ...currentUser, about: about.trim() }, true);
     }
     setEditingAbout(false);
+  };
+
+  const handleSavePhone = async () => {
+    if (currentUser) {
+      await updateCurrentUser(
+        { ...currentUser, phone: phone.trim() || undefined },
+        true
+      );
+    }
+    setEditingPhone(false);
+  };
+
+  const handleAvatarChange = async () => {
+    if (!currentUser || uploadingAvatar) return;
+
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          { name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] },
+        ],
+      });
+
+      if (!selected) return;
+
+      setUploadingAvatar(true);
+
+      // Upload to local storage
+      const localPath = await userService.uploadAvatar(selected);
+
+      // Read file bytes for broadcast
+      const bytes = await readFile(selected);
+      const base64 = btoa(
+        Array.from(new Uint8Array(bytes))
+          .map((b) => String.fromCharCode(b))
+          .join("")
+      );
+
+      // Update user with broadcast
+      await updateCurrentUser(
+        { ...currentUser, avatar_url: localPath },
+        true,
+        base64
+      );
+    } catch (e) {
+      console.error("Failed to upload avatar:", e);
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   return (
@@ -70,9 +126,15 @@ export function ProfileModal() {
                 name={currentUser?.name || "You"}
                 size={200}
               />
-              <button className="absolute inset-0 flex flex-col items-center justify-center transition-opacity rounded-full opacity-0 bg-black/50 group-hover:opacity-100">
+              <button
+                onClick={handleAvatarChange}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 flex flex-col items-center justify-center transition-opacity rounded-full opacity-0 bg-black/50 group-hover:opacity-100 disabled:cursor-not-allowed"
+              >
                 <Camera size={24} className="mb-1 text-white" />
-                <span className="text-xs text-white">CHANGE PROFILE PHOTO</span>
+                <span className="text-xs text-white">
+                  {uploadingAvatar ? "UPLOADING..." : "CHANGE PROFILE PHOTO"}
+                </span>
               </button>
             </div>
           </div>
@@ -161,9 +223,36 @@ export function ProfileModal() {
             <label className="text-sm text-[var(--accent)] mb-2 block">
               Phone
             </label>
-            <span className="text-[var(--text-primary)] font-mono">
-              {currentUser?.phone || "Not set"}
-            </span>
+            {editingPhone ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 234 567 8900"
+                  className="flex-1 bg-transparent text-[var(--text-primary)] border-b-2 border-[var(--accent)] outline-none py-1 font-mono"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSavePhone}
+                  className="text-[var(--accent)] hover:text-[var(--accent-dark)]"
+                >
+                  <Check size={20} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--text-primary)] font-mono">
+                  {currentUser?.phone || "Not set"}
+                </span>
+                <button
+                  onClick={() => setEditingPhone(true)}
+                  className="text-[var(--text-secondary)] hover:text-[var(--accent)]"
+                >
+                  <Pencil size={18} />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="h-2 bg-[var(--bg-secondary)]" />

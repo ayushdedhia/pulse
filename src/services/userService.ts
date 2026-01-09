@@ -25,4 +25,17 @@ export const userService = {
   ): Promise<User> => {
     return invoke<User>("add_contact", { id, name, phone });
   },
+
+  uploadAvatar: (sourcePath: string): Promise<string> => {
+    return invoke<string>("upload_avatar", { sourcePath });
+  },
+
+  savePeerAvatar: (userId: string, avatarData: string): Promise<string> => {
+    return invoke<string>("save_peer_avatar", { userId, avatarData });
+  },
+
+  /** Save a contact with a custom display name (alias) */
+  saveContact: (userId: string, displayName: string): Promise<User> => {
+    return invoke<User>("save_contact", { userId, displayName });
+  },
 };

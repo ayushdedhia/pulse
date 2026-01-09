@@ -28,7 +28,18 @@ export const useChatStore = create<ChatStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const chats = await chatService.getChats();
-      set({ chats, isLoading: false });
+
+      // Update activeChat if it exists (to refresh participant data)
+      set((state) => {
+        let updatedActiveChat = state.activeChat;
+        if (state.activeChat) {
+          const freshChat = chats.find((c) => c.id === state.activeChat!.id);
+          if (freshChat) {
+            updatedActiveChat = freshChat;
+          }
+        }
+        return { chats, activeChat: updatedActiveChat, isLoading: false };
+      });
 
       // Also load current user
       await useUserStore.getState().loadCurrentUser();

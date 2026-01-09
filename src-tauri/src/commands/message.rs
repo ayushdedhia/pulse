@@ -88,7 +88,7 @@ pub fn get_messages(
         .prepare(
             "SELECT m.id, m.chat_id, m.sender_id, m.content, m.message_type, m.media_url,
                     m.reply_to_id, m.status, m.created_at, m.edited_at,
-                    u.id, u.name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
+                    u.id, u.name, u.display_name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
              FROM messages m
              LEFT JOIN users u ON m.sender_id = u.id
              WHERE m.chat_id = ?1
@@ -106,11 +106,12 @@ pub fn get_messages(
                 sender: Some(User {
                     id: row.get(10)?,
                     name: row.get(11)?,
-                    phone: row.get(12)?,
-                    avatar_url: row.get(13)?,
-                    about: row.get(14)?,
-                    last_seen: row.get(15)?,
-                    is_online: row.get::<_, i32>(16)? == 1,
+                    display_name: row.get(12)?,
+                    phone: row.get(13)?,
+                    avatar_url: row.get(14)?,
+                    about: row.get(15)?,
+                    last_seen: row.get(16)?,
+                    is_online: row.get::<_, i32>(17)? == 1,
                 }),
                 content: row.get(3)?,
                 message_type: row.get(4)?,
@@ -176,17 +177,18 @@ pub fn send_message(
     // Get sender info
     let sender = conn
         .query_row(
-            "SELECT id, name, phone, avatar_url, about, last_seen, is_online FROM users WHERE is_self = 1",
+            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE is_self = 1",
             [],
             |row| {
                 Ok(User {
                     id: row.get(0)?,
                     name: row.get(1)?,
-                    phone: row.get(2)?,
-                    avatar_url: row.get(3)?,
-                    about: row.get(4)?,
-                    last_seen: row.get(5)?,
-                    is_online: row.get::<_, i32>(6)? == 1,
+                    display_name: row.get(2)?,
+                    phone: row.get(3)?,
+                    avatar_url: row.get(4)?,
+                    about: row.get(5)?,
+                    last_seen: row.get(6)?,
+                    is_online: row.get::<_, i32>(7)? == 1,
                 })
             },
         )
@@ -277,7 +279,7 @@ pub fn search_messages(db: State<'_, Database>, query: String) -> Result<Vec<Mes
         .prepare(
             "SELECT m.id, m.chat_id, m.sender_id, m.content, m.message_type, m.media_url,
                     m.reply_to_id, m.status, m.created_at, m.edited_at,
-                    u.id, u.name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
+                    u.id, u.name, u.display_name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
              FROM messages m
              LEFT JOIN users u ON m.sender_id = u.id
              WHERE m.content LIKE ?1
@@ -295,11 +297,12 @@ pub fn search_messages(db: State<'_, Database>, query: String) -> Result<Vec<Mes
                 sender: Some(User {
                     id: row.get(10)?,
                     name: row.get(11)?,
-                    phone: row.get(12)?,
-                    avatar_url: row.get(13)?,
-                    about: row.get(14)?,
-                    last_seen: row.get(15)?,
-                    is_online: row.get::<_, i32>(16)? == 1,
+                    display_name: row.get(12)?,
+                    phone: row.get(13)?,
+                    avatar_url: row.get(14)?,
+                    about: row.get(15)?,
+                    last_seen: row.get(16)?,
+                    is_online: row.get::<_, i32>(17)? == 1,
                 }),
                 content: row.get(3)?,
                 message_type: row.get(4)?,
@@ -430,17 +433,18 @@ pub fn receive_message(
     // Get sender info
     let sender = conn
         .query_row(
-            "SELECT id, name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
+            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
             [&sender_id],
             |row| {
                 Ok(User {
                     id: row.get(0)?,
                     name: row.get(1)?,
-                    phone: row.get(2)?,
-                    avatar_url: row.get(3)?,
-                    about: row.get(4)?,
-                    last_seen: row.get(5)?,
-                    is_online: row.get::<_, i32>(6)? == 1,
+                    display_name: row.get(2)?,
+                    phone: row.get(3)?,
+                    avatar_url: row.get(4)?,
+                    about: row.get(5)?,
+                    last_seen: row.get(6)?,
+                    is_online: row.get::<_, i32>(7)? == 1,
                 })
             },
         )

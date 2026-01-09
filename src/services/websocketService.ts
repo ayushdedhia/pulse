@@ -40,4 +40,25 @@ export const websocketService = {
   broadcastPresence: (userId: string): Promise<void> => {
     return invoke<void>("broadcast_presence", { userId });
   },
+
+  /**
+   * Broadcast profile update to all connected peers
+   */
+  broadcastProfile: (
+    userId: string,
+    name: string,
+    phone?: string,
+    avatarUrl?: string,
+    about?: string,
+    avatarData?: string
+  ): Promise<void> => {
+    return invoke<void>("broadcast_profile", {
+      userId,
+      name,
+      phone,
+      avatarUrl,
+      about,
+      avatarData,
+    });
+  },
 };

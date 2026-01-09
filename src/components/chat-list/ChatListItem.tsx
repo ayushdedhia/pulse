@@ -2,7 +2,8 @@ import { format, isToday, isYesterday } from "date-fns";
 import type { CSSProperties } from "react";
 
 import { useWebSocketContext } from "../../context/WebSocketContext";
-import type { Chat } from "../../types";
+import { useUserStore } from "../../store/userStore";
+import { type Chat, getUserDisplayName } from "../../types";
 import { MessageStatus } from "../chat/MessageStatus";
 import { Avatar } from "../common/Avatar";
 
@@ -15,10 +16,11 @@ interface ChatListItemProps {
 
 export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemProps) {
   const { onlineUsers } = useWebSocketContext();
+  const currentUser = useUserStore((state) => state.currentUser);
 
   const displayName = chat.chat_type === "group"
     ? chat.name
-    : chat.participant?.name || "Unknown";
+    : getUserDisplayName(chat.participant);
 
   const avatarUrl = chat.chat_type === "group"
     ? chat.avatar_url
@@ -31,7 +33,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
   const lastMessage = chat.last_message;
   const lastMessageTime = lastMessage ? formatMessageTime(lastMessage.created_at) : "";
 
-  const isOwnMessage = lastMessage?.sender_id === "self";
+  const isOwnMessage = lastMessage?.sender_id === currentUser?.id;
   const hasUnread = chat.unread_count > 0;
 
   return (
@@ -89,7 +91,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
           <p className={`text-[13px] truncate flex-1 ${hasUnread ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
             {chat.chat_type === "group" && lastMessage && !isOwnMessage && (
               <span className="text-[var(--text-secondary)]">
-                {lastMessage.sender?.name?.split(" ")[0]}:{" "}
+                {getUserDisplayName(lastMessage.sender).split(" ")[0]}:{" "}
               </span>
             )}
             {lastMessage?.content || "No messages yet"}
@@ -97,13 +99,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
 
           {/* Unread badge */}
           {hasUnread && (
-            <span className="
-              flex-shrink-0 min-w-[20px] h-[20px] px-[6px]
-              flex items-center justify-center
-              bg-[var(--unread-badge)] text-white
-              text-[11px] font-medium rounded-full
-              animate-badge-pulse
-            ">
+            <span className="flex-shrink-0 min-w-[20px] h-[20px] px-[6px] flex items-center justify-center bg-[var(--unread-badge)] text-white text-[11px] font-medium rounded-full animate-badge-pulse">
               <span className="font-mono">{chat.unread_count > 99 ? "99+" : chat.unread_count}</span>
             </span>
           )}

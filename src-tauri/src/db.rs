@@ -22,6 +22,7 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
+            display_name TEXT,
             phone TEXT,
             avatar_url TEXT,
             about TEXT DEFAULT 'Hey there! I am using Pulse',
@@ -79,6 +80,20 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_public_keys_type ON public_keys(key_type);
         ",
     )?;
+
+    // Migration: Add display_name column if it doesn't exist (for existing databases)
+    let has_display_name: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'display_name'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_display_name {
+        conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT", [])?;
+    }
 
     // Create current user if not exists
     let user_count: i32 =

@@ -77,7 +77,7 @@ pub fn get_chats(db: State<'_, Database>) -> Result<Vec<Chat>, String> {
         // For individual chats, get the other participant
         if chat.chat_type == "individual" {
             if let Ok(mut user_stmt) = conn.prepare(
-                "SELECT u.id, u.name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
+                "SELECT u.id, u.name, u.display_name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
             FROM users u
             JOIN chat_participants cp ON u.id = cp.user_id
             WHERE cp.chat_id = ?1 AND u.id != ?2",
@@ -86,11 +86,12 @@ pub fn get_chats(db: State<'_, Database>) -> Result<Vec<Chat>, String> {
                     Ok(User {
                         id: row.get(0)?,
                         name: row.get(1)?,
-                        phone: row.get(2)?,
-                        avatar_url: row.get(3)?,
-                        about: row.get(4)?,
-                        last_seen: row.get(5)?,
-                        is_online: row.get::<_, i32>(6)? == 1,
+                        display_name: row.get(2)?,
+                        phone: row.get(3)?,
+                        avatar_url: row.get(4)?,
+                        about: row.get(5)?,
+                        last_seen: row.get(6)?,
+                        is_online: row.get::<_, i32>(7)? == 1,
                     })
                 }) {
                     chat.participant = Some(user);
@@ -173,7 +174,7 @@ pub fn get_chat_by_id(
     // Get participant for individual chats
     if chat.chat_type == "individual" {
         if let Ok(user) = conn.query_row(
-            "SELECT u.id, u.name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
+            "SELECT u.id, u.name, u.display_name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
          FROM users u
          JOIN chat_participants cp ON u.id = cp.user_id
          WHERE cp.chat_id = ?1 AND u.id != ?2",
@@ -182,11 +183,12 @@ pub fn get_chat_by_id(
                 Ok(User {
                     id: row.get(0)?,
                     name: row.get(1)?,
-                    phone: row.get(2)?,
-                    avatar_url: row.get(3)?,
-                    about: row.get(4)?,
-                    last_seen: row.get(5)?,
-                    is_online: row.get::<_, i32>(6)? == 1,
+                    display_name: row.get(2)?,
+                    phone: row.get(3)?,
+                    avatar_url: row.get(4)?,
+                    about: row.get(5)?,
+                    last_seen: row.get(6)?,
+                    is_online: row.get::<_, i32>(7)? == 1,
                 })
             },
         ) {
