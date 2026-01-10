@@ -1,13 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { useChatStore } from "../store/chatStore";
 import { useMessageStore } from "../store/messageStore";
@@ -16,6 +8,8 @@ import { useUserStore } from "../store/userStore";
 // Get store functions without subscribing to state changes
 const getMessageActions = () => useMessageStore.getState();
 const getChatActions = () => useChatStore.getState();
+
+const SERVER_URL = "ws://localhost:9001";
 
 interface WsMessage {
   type: string;
@@ -32,7 +26,7 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue>({
   isConnected: false,
   typingUsers: {},
-  sendTyping: () => { },
+  sendTyping: () => {},
   onlineUsers: new Set(),
 });
 
@@ -61,10 +55,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 message_type: string;
                 status: string;
                 created_at: number;
-                sender?: {
-                  id: string;
-                  name: string;
-                };
+                sender?: { id: string; name: string };
               }>("receive_message", {
                 id: data.id as string,
                 chatId: data.chat_id as string,
@@ -95,10 +86,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
               if (isTyping && !chatUsers.includes(userId)) {
                 return { ...prev, [chatId]: [...chatUsers, userId] };
               } else if (!isTyping) {
-                return {
-                  ...prev,
-                  [chatId]: chatUsers.filter((id) => id !== userId),
-                };
+                return { ...prev, [chatId]: chatUsers.filter((id) => id !== userId) };
               }
               return prev;
             });
@@ -132,7 +120,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
         case "delivery_receipt":
           // Update message status to 'delivered' when recipient receives it
-          // delivered_to is the recipient's ID, so we update if it's NOT us (meaning we sent it)
           if (data.message_id && data.delivered_to !== currentUser?.id) {
             getMessageActions().updateMessageStatus(data.message_id as string, "delivered");
           }
@@ -149,19 +136,20 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           break;
 
         case "auth_response":
-          // Handle authentication response
+          // Handle authentication response from server
           if (data.success) {
-            console.log("WebSocket authenticated successfully");
+            console.log("Connected to Pulse server");
             setIsConnected(true);
-            // Broadcast our presence to all connected peers
+            // Connect the Tauri backend client and broadcast presence
             if (currentUser) {
-              invoke("broadcast_presence", { userId: currentUser.id }).catch((e) =>
-                console.error("Failed to broadcast presence:", e)
-              );
+              invoke("connect_websocket", { userId: currentUser.id })
+                .then(() => invoke("broadcast_presence", { userId: currentUser.id }))
+                .catch((e) => console.error("Failed to initialize backend WebSocket:", e));
             }
           } else {
-            console.error("WebSocket authentication failed:", data.message);
+            console.warn("Server authentication failed:", data.message);
             setIsConnected(false);
+            wsRef.current?.close();
           }
           break;
 
@@ -212,27 +200,16 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (!currentUser) return;
 
     try {
-      const [port, authToken] = await Promise.all([
-        invoke<number>("get_ws_port"),
-        invoke<string>("get_ws_auth_token"),
-      ]);
-      const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      console.log("Connecting to Pulse server at", SERVER_URL);
+      const ws = new WebSocket(SERVER_URL);
 
       ws.onopen = () => {
-        console.log("WebSocket connected to port", port);
-
-        // Authenticate with the server
-        if (currentUser) {
-          ws.send(
-            JSON.stringify({
-              type: "connect",
-              user_id: currentUser.id,
-              auth_token: authToken,
-            })
-          );
-        }
+        console.log("WebSocket connected, authenticating...");
+        // Send connect message with user ID
+        ws.send(JSON.stringify({ type: "connect", user_id: currentUser.id }));
       };
 
       ws.onmessage = (event) => {
@@ -260,7 +237,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
       wsRef.current = ws;
     } catch (err) {
-      console.error("Failed to get WS port:", err);
+      console.error("Failed to connect to server:", err);
+      // Retry after delay
+      reconnectTimeoutRef.current = window.setTimeout(() => {
+        connect();
+      }, 3000);
     }
   }, [currentUser, handleMessage]);
 
@@ -294,9 +275,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   }, [currentUser, connect]);
 
   return (
-    <WebSocketContext.Provider
-      value={{ isConnected, typingUsers, sendTyping, onlineUsers }}
-    >
+    <WebSocketContext.Provider value={{ isConnected, typingUsers, sendTyping, onlineUsers }}>
       {children}
     </WebSocketContext.Provider>
   );

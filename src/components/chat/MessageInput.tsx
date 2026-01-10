@@ -166,6 +166,7 @@ export function MessageInput() {
             onKeyDown={handleKeyDown}
             placeholder="Type a message"
             rows={1}
+            data-testid="message-input"
             className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none text-[15px] leading-[21px] resize-none max-h-[120px] no-scrollbar py-[10px]"
           />
         </div>

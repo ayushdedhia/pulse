@@ -132,6 +132,20 @@ export const useMessageStore = create<MessageStore>((set) => ({
                 ),
               },
             }));
+
+            // Also update chat's last_message if it matches
+            const chatState = useChatStore.getState();
+            const chat = chatState.chats.find((c) => c.id === chatId);
+            if (chat?.last_message?.id === messageId) {
+              useChatStore.setState((cs) => ({
+                chats: cs.chats.map((c) =>
+                  c.id === chatId && c.last_message
+                    ? { ...c, last_message: { ...c.last_message, status } }
+                    : c
+                ),
+              }));
+            }
+
             return true;
           }
         }

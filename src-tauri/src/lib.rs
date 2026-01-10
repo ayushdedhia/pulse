@@ -7,7 +7,7 @@ mod websocket;
 
 use std::path::PathBuf;
 use tauri::Manager;
-use tracing::{error, info};
+use tracing::info;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -61,14 +61,8 @@ pub fn run() {
             db::init_database(app_handle).expect("Failed to initialize database");
             info!("Database initialized");
 
-            // Start WebSocket server in background using tauri's async runtime
-            tauri::async_runtime::spawn(async {
-                match websocket::init_websocket_server().await {
-                    Ok(port) => info!(port = port, "WebSocket server started"),
-                    Err(e) => error!(error = %e, "Failed to start WebSocket server"),
-                }
-            });
-
+            // Note: WebSocket connection is initialized from frontend after user is loaded
+            // via the connect_websocket command with the user_id
             // Note: Crypto identity is now initialized from frontend via init_identity command
             // This allows persistent key storage in OS keyring
 
@@ -96,11 +90,9 @@ pub fn run() {
             commands::user::save_peer_avatar,
             // WebSocket commands
             commands::websocket::broadcast_message,
-            commands::websocket::get_ws_port,
-            commands::websocket::get_local_ip,
-            commands::websocket::get_network_status,
-            commands::websocket::connect_to_peer,
-            commands::websocket::get_ws_auth_token,
+            commands::websocket::get_server_url,
+            commands::websocket::is_connected,
+            commands::websocket::connect_websocket,
             commands::websocket::broadcast_presence,
             commands::websocket::broadcast_profile,
             // Crypto commands

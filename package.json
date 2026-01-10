@@ -8,7 +8,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:test": "set CARGO_TARGET_DIR=%cd%\\target-test&& tauri dev --config src-tauri/tauri.test.conf.json --no-dev-server"
+    "tauri:test": "set CARGO_TARGET_DIR=%cd%\\target-test&& tauri dev --config src-tauri/tauri.test.conf.json --no-dev-server",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -26,6 +29,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tauri-apps/cli": "^2.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

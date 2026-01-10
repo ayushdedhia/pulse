@@ -1,4 +1,5 @@
 use crate::db::Database;
+use crate::models::input::{CreateChatInput, ValidateExt};
 use crate::models::{Chat, Message, User};
 use crate::utils::{generate_deterministic_chat_id, get_self_id};
 use tauri::State;
@@ -106,12 +107,14 @@ pub fn get_chats(db: State<'_, Database>) -> Result<Vec<Chat>, String> {
 }
 
 #[tauri::command]
-pub fn create_chat(db: State<'_, Database>, user_id: String) -> Result<Chat, String> {
+pub fn create_chat(db: State<'_, Database>, input: CreateChatInput) -> Result<Chat, String> {
+    input.validate_input()?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().timestamp_millis();
 
     let self_id = get_self_id(&conn)?;
-    let chat_id = generate_deterministic_chat_id(&self_id, &user_id);
+    let chat_id = generate_deterministic_chat_id(&self_id, &input.user_id);
 
     // Check if chat already exists
     let existing: Option<String> = conn
@@ -138,7 +141,7 @@ pub fn create_chat(db: State<'_, Database>, user_id: String) -> Result<Chat, Str
 
     conn.execute(
         "INSERT INTO chat_participants (chat_id, user_id, joined_at) VALUES (?1, ?2, ?3)",
-        (&chat_id, &user_id, now),
+        (&chat_id, &input.user_id, now),
     )
     .map_err(|e| e.to_string())?;
 

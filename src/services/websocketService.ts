@@ -2,6 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { NetworkStatus } from "../types";
 
 export const websocketService = {
+  /**
+   * Connect the Tauri backend WebSocket client to the central server
+   * Must be called before broadcastMessage, broadcastPresence, etc.
+   */
+  connect: (userId: string): Promise<void> => {
+    return invoke<void>("connect_websocket", { userId });
+  },
+
   broadcastMessage: (
     messageId: string,
     chatId: string,

@@ -40,6 +40,7 @@ export function ChatListItem({ chat, isActive, onClick, style }: ChatListItemPro
     <button
       onClick={onClick}
       style={style}
+      data-testid="chat-item"
       className={`
         w-full flex items-center gap-3 px-3 py-2 text-left
         transition-all duration-200 group relative

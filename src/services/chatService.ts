@@ -7,6 +7,6 @@ export const chatService = {
   },
 
   createChat: (userId: string): Promise<Chat> => {
-    return invoke<Chat>("create_chat", { userId });
+    return invoke<Chat>("create_chat", { input: { user_id: userId } });
   },
 };

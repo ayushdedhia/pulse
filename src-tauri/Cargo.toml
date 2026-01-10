@@ -41,6 +41,9 @@ hex = "0.4"
 # OS Keyring for secure key storage
 keyring = "3"
 
+# Input validation
+garde = { version = "0.22", features = ["derive"] }
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

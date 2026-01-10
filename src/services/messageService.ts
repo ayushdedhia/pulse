@@ -7,7 +7,9 @@ export const messageService = {
     limit: number = 100,
     offset: number = 0
   ): Promise<Message[]> => {
-    return invoke<Message[]>("get_messages", { chatId, limit, offset });
+    return invoke<Message[]>("get_messages", {
+      input: { chat_id: chatId, limit, offset },
+    });
   },
 
   sendMessage: (
@@ -15,19 +17,23 @@ export const messageService = {
     content: string,
     messageType: string = "text"
   ): Promise<Message> => {
-    return invoke<Message>("send_message", { chatId, content, messageType });
+    return invoke<Message>("send_message", {
+      input: { chat_id: chatId, content, message_type: messageType },
+    });
   },
 
   markAsRead: (chatId: string): Promise<string[]> => {
-    return invoke<string[]>("mark_as_read", { chatId });
+    return invoke<string[]>("mark_as_read", { input: { chat_id: chatId } });
   },
 
   updateMessageStatus: (messageId: string, status: string): Promise<boolean> => {
-    return invoke<boolean>("update_message_status", { messageId, status });
+    return invoke<boolean>("update_message_status", {
+      input: { message_id: messageId, status },
+    });
   },
 
   searchMessages: (query: string): Promise<Message[]> => {
-    return invoke<Message[]>("search_messages", { query });
+    return invoke<Message[]>("search_messages", { input: { query } });
   },
 
   receiveMessage: (

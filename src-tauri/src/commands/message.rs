@@ -1,9 +1,13 @@
 use crate::crypto::get_crypto_manager;
 use crate::db::Database;
+use crate::models::input::{
+    GetMessagesInput, MarkAsReadInput, SearchMessagesInput, SendMessageInput,
+    UpdateMessageStatusInput, ValidateExt,
+};
 use crate::models::{Message, User};
-use crate::utils::validation::{validate_chat_id, validate_message, validate_user_id};
+use crate::utils::validation::validate_user_id;
 use crate::utils::{generate_deterministic_chat_id, get_self_id};
-use crate::websocket::{get_ws_server, WsMessage};
+use crate::websocket::{get_ws_client, WsMessage};
 use tauri::State;
 
 /// Helper to get the peer user ID from a chat (for 1-on-1 chats)
@@ -72,17 +76,12 @@ fn decrypt_content(
 }
 
 #[tauri::command]
-pub fn get_messages(
-    db: State<'_, Database>,
-    chat_id: String,
-    limit: i32,
-    offset: i32,
-) -> Result<Vec<Message>, String> {
-    // Validate input
-    validate_chat_id(&chat_id)?;
+pub fn get_messages(db: State<'_, Database>, input: GetMessagesInput) -> Result<Vec<Message>, String> {
+    input.validate_input()?;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let self_id = get_self_id(&conn)?;
+    let chat_id = &input.chat_id;
 
     let mut stmt = conn
         .prepare(
@@ -98,7 +97,7 @@ pub fn get_messages(
         .map_err(|e| e.to_string())?;
 
     let messages: Vec<Message> = stmt
-        .query_map([&chat_id, &limit.to_string(), &offset.to_string()], |row| {
+        .query_map([chat_id, &input.limit.to_string(), &input.offset.to_string()], |row| {
             Ok(Message {
                 id: row.get(0)?,
                 chat_id: row.get(1)?,
@@ -131,7 +130,7 @@ pub fn get_messages(
         .into_iter()
         .map(|mut msg| {
             if let Some(ref content) = msg.content {
-                msg.content = Some(decrypt_content(&conn, content, &chat_id, &self_id));
+                msg.content = Some(decrypt_content(&conn, content, chat_id, &self_id));
             }
             msg
         })
@@ -141,36 +140,30 @@ pub fn get_messages(
 }
 
 #[tauri::command]
-pub fn send_message(
-    db: State<'_, Database>,
-    chat_id: String,
-    content: String,
-    message_type: String,
-) -> Result<Message, String> {
-    // Validate input
-    validate_chat_id(&chat_id)?;
-    validate_message(&content)?;
+pub fn send_message(db: State<'_, Database>, input: SendMessageInput) -> Result<Message, String> {
+    input.validate_input()?;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let chat_id = &input.chat_id;
     let now = chrono::Utc::now().timestamp_millis();
     let msg_id = uuid::Uuid::new_v4().to_string();
 
     let self_id = get_self_id(&conn)?;
 
     // Encrypt the message content before storing
-    let encrypted_content = encrypt_content(&conn, &content, &chat_id, &self_id)?;
+    let encrypted_content = encrypt_content(&conn, &input.content, chat_id, &self_id)?;
 
     conn.execute(
         "INSERT INTO messages (id, chat_id, sender_id, content, message_type, status, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, 'sent', ?6)",
-        (&msg_id, &chat_id, &self_id, &encrypted_content, &message_type, now),
+        (&msg_id, chat_id, &self_id, &encrypted_content, &input.message_type, now),
     )
     .map_err(|e| e.to_string())?;
 
     // Update chat's updated_at
     conn.execute(
         "UPDATE chats SET updated_at = ?1 WHERE id = ?2",
-        (now, &chat_id),
+        (now, chat_id),
     )
     .map_err(|e| e.to_string())?;
 
@@ -196,11 +189,11 @@ pub fn send_message(
 
     Ok(Message {
         id: msg_id,
-        chat_id,
+        chat_id: input.chat_id,
         sender_id: self_id,
         sender,
-        content: Some(content),
-        message_type,
+        content: Some(input.content),
+        message_type: input.message_type,
         media_url: None,
         reply_to_id: None,
         status: "sent".to_string(),
@@ -210,8 +203,11 @@ pub fn send_message(
 }
 
 #[tauri::command]
-pub fn mark_as_read(db: State<'_, Database>, chat_id: String) -> Result<Vec<String>, String> {
+pub fn mark_as_read(db: State<'_, Database>, input: MarkAsReadInput) -> Result<Vec<String>, String> {
+    input.validate_input()?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let chat_id = &input.chat_id;
 
     let self_id = get_self_id(&conn)?;
 
@@ -223,7 +219,7 @@ pub fn mark_as_read(db: State<'_, Database>, chat_id: String) -> Result<Vec<Stri
         .map_err(|e| e.to_string())?;
 
     let message_ids: Vec<String> = stmt
-        .query_map([&chat_id, &self_id], |row| row.get(0))
+        .query_map([chat_id, &self_id], |row| row.get(0))
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();
@@ -231,18 +227,18 @@ pub fn mark_as_read(db: State<'_, Database>, chat_id: String) -> Result<Vec<Stri
     // Update messages to read status
     conn.execute(
         "UPDATE messages SET status = 'read' WHERE chat_id = ?1 AND sender_id != ?2",
-        [&chat_id, &self_id],
+        [chat_id, &self_id],
     )
     .map_err(|e| e.to_string())?;
 
     // Broadcast read receipt if there are messages to mark as read
     if !message_ids.is_empty() {
         let read_receipt = WsMessage::ReadReceipt {
-            chat_id: chat_id.clone(),
+            chat_id: input.chat_id,
             user_id: self_id,
             message_ids: message_ids.clone(),
         };
-        let _ = get_ws_server().broadcast(read_receipt);
+        let _ = get_ws_client().broadcast(read_receipt);
     }
 
     Ok(message_ids)
@@ -251,14 +247,15 @@ pub fn mark_as_read(db: State<'_, Database>, chat_id: String) -> Result<Vec<Stri
 #[tauri::command]
 pub fn update_message_status(
     db: State<'_, Database>,
-    message_id: String,
-    status: String,
+    input: UpdateMessageStatusInput,
 ) -> Result<bool, String> {
+    input.validate_input()?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.execute(
         "UPDATE messages SET status = ?1 WHERE id = ?2",
-        [&status, &message_id],
+        [&input.status, &input.message_id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -270,10 +267,12 @@ pub fn update_message_status(
 /// Only unencrypted messages or messages that match the encrypted pattern will be found.
 /// For full search capability, consider implementing a local search index.
 #[tauri::command]
-pub fn search_messages(db: State<'_, Database>, query: String) -> Result<Vec<Message>, String> {
+pub fn search_messages(db: State<'_, Database>, input: SearchMessagesInput) -> Result<Vec<Message>, String> {
+    input.validate_input()?;
+
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let self_id = get_self_id(&conn)?;
-    let search_pattern = format!("%{}%", query);
+    let search_pattern = format!("%{}%", input.query);
 
     let mut stmt = conn
         .prepare(
@@ -456,7 +455,7 @@ pub fn receive_message(
         chat_id: chat_id.clone(),
         delivered_to: self_id.clone(),
     };
-    let _ = get_ws_server().broadcast(delivery_receipt);
+    let _ = get_ws_client().broadcast(delivery_receipt);
 
     // Decrypt content for the returned message (so UI can display it)
     let decrypted_content = decrypt_content(&conn, &content, &chat_id, &self_id);

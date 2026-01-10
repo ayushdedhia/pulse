@@ -37,25 +37,11 @@ pub enum WsMessage {
         message_ids: Vec<String>,
     },
     #[serde(rename = "connect")]
-    Connect {
-        user_id: String,
-        /// Authentication token - required for WebSocket connection
-        #[serde(default)]
-        auth_token: Option<String>,
-    },
+    Connect { user_id: String },
     #[serde(rename = "auth_response")]
-    AuthResponse {
-        success: bool,
-        message: String,
-    },
+    AuthResponse { success: bool, message: String },
     #[serde(rename = "error")]
     Error { message: String },
-    /// Peer-to-peer connection with token exchange
-    #[serde(rename = "peer_connect")]
-    PeerConnect {
-        /// The connecting peer's token to be added to trusted tokens
-        peer_token: String,
-    },
     /// Profile update broadcast to peers
     #[serde(rename = "profile_update")]
     ProfileUpdate {
@@ -67,4 +53,234 @@ pub enum WsMessage {
         /// Base64-encoded avatar image bytes (only when avatar changes)
         avatar_data: Option<String>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_connect_message_roundtrip() {
+        let msg = WsMessage::Connect {
+            user_id: "user123".to_string(),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::Connect { user_id } = parsed {
+            assert_eq!(user_id, "user123");
+        } else {
+            panic!("Expected Connect");
+        }
+    }
+
+    #[test]
+    fn test_chat_message_roundtrip() {
+        let msg = WsMessage::ChatMessage {
+            id: "msg1".to_string(),
+            chat_id: "chat1".to_string(),
+            sender_id: "user1".to_string(),
+            sender_name: "Alice".to_string(),
+            content: "Hello!".to_string(),
+            timestamp: 1234567890,
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::ChatMessage {
+            id,
+            content,
+            sender_name,
+            ..
+        } = parsed
+        {
+            assert_eq!(id, "msg1");
+            assert_eq!(content, "Hello!");
+            assert_eq!(sender_name, "Alice");
+        } else {
+            panic!("Expected ChatMessage");
+        }
+    }
+
+    #[test]
+    fn test_typing_message_roundtrip() {
+        let msg = WsMessage::Typing {
+            chat_id: "chat1".to_string(),
+            user_id: "user1".to_string(),
+            is_typing: true,
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::Typing {
+            chat_id,
+            user_id,
+            is_typing,
+        } = parsed
+        {
+            assert_eq!(chat_id, "chat1");
+            assert_eq!(user_id, "user1");
+            assert!(is_typing);
+        } else {
+            panic!("Expected Typing");
+        }
+    }
+
+    #[test]
+    fn test_presence_message_roundtrip() {
+        let msg = WsMessage::Presence {
+            user_id: "user1".to_string(),
+            is_online: true,
+            last_seen: Some(1234567890),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::Presence {
+            user_id,
+            is_online,
+            last_seen,
+        } = parsed
+        {
+            assert_eq!(user_id, "user1");
+            assert!(is_online);
+            assert_eq!(last_seen, Some(1234567890));
+        } else {
+            panic!("Expected Presence");
+        }
+    }
+
+    #[test]
+    fn test_delivery_receipt_roundtrip() {
+        let msg = WsMessage::DeliveryReceipt {
+            message_id: "msg1".to_string(),
+            chat_id: "chat1".to_string(),
+            delivered_to: "user2".to_string(),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::DeliveryReceipt {
+            message_id,
+            chat_id,
+            delivered_to,
+        } = parsed
+        {
+            assert_eq!(message_id, "msg1");
+            assert_eq!(chat_id, "chat1");
+            assert_eq!(delivered_to, "user2");
+        } else {
+            panic!("Expected DeliveryReceipt");
+        }
+    }
+
+    #[test]
+    fn test_read_receipt_roundtrip() {
+        let msg = WsMessage::ReadReceipt {
+            chat_id: "chat1".to_string(),
+            user_id: "user1".to_string(),
+            message_ids: vec!["msg1".to_string(), "msg2".to_string()],
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::ReadReceipt {
+            chat_id,
+            user_id,
+            message_ids,
+        } = parsed
+        {
+            assert_eq!(chat_id, "chat1");
+            assert_eq!(user_id, "user1");
+            assert_eq!(message_ids, vec!["msg1", "msg2"]);
+        } else {
+            panic!("Expected ReadReceipt");
+        }
+    }
+
+    #[test]
+    fn test_auth_response_roundtrip() {
+        let msg = WsMessage::AuthResponse {
+            success: true,
+            message: "Connected".to_string(),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::AuthResponse { success, message } = parsed {
+            assert!(success);
+            assert_eq!(message, "Connected");
+        } else {
+            panic!("Expected AuthResponse");
+        }
+    }
+
+    #[test]
+    fn test_profile_update_roundtrip() {
+        let msg = WsMessage::ProfileUpdate {
+            user_id: "user1".to_string(),
+            name: "Alice".to_string(),
+            phone: Some("+1234567890".to_string()),
+            avatar_url: None,
+            about: Some("Hello!".to_string()),
+            avatar_data: None,
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsMessage = serde_json::from_str(&json).unwrap();
+
+        if let WsMessage::ProfileUpdate {
+            user_id,
+            name,
+            phone,
+            avatar_url,
+            about,
+            avatar_data,
+        } = parsed
+        {
+            assert_eq!(user_id, "user1");
+            assert_eq!(name, "Alice");
+            assert_eq!(phone, Some("+1234567890".to_string()));
+            assert!(avatar_url.is_none());
+            assert_eq!(about, Some("Hello!".to_string()));
+            assert!(avatar_data.is_none());
+        } else {
+            panic!("Expected ProfileUpdate");
+        }
+    }
+
+    #[test]
+    fn test_server_client_message_compatibility() {
+        // Test that messages serialized by server can be parsed by client
+        // Simulate server sending auth_response
+        let server_json = r#"{"type":"auth_response","success":true,"message":"Connected to server"}"#;
+        let parsed: WsMessage = serde_json::from_str(server_json).unwrap();
+
+        if let WsMessage::AuthResponse { success, .. } = parsed {
+            assert!(success);
+        } else {
+            panic!("Expected AuthResponse");
+        }
+
+        // Simulate server sending presence
+        let server_json = r#"{"type":"presence","user_id":"user2","is_online":true,"last_seen":null}"#;
+        let parsed: WsMessage = serde_json::from_str(server_json).unwrap();
+
+        if let WsMessage::Presence {
+            user_id, is_online, ..
+        } = parsed
+        {
+            assert_eq!(user_id, "user2");
+            assert!(is_online);
+        } else {
+            panic!("Expected Presence");
+        }
+    }
 }

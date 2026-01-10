@@ -1,6 +1,17 @@
 # Pulse - Architecture
 
-## Project Structure (Refactored)
+## Project Structure
+
+### Central Server (pulse-server/)
+```
+pulse-server/
+├── Cargo.toml              # Server dependencies
+└── src/
+    ├── main.rs             # Entry point, TCP listener
+    ├── state.rs            # ServerState (connected clients tracking)
+    ├── connection.rs       # Per-client WebSocket handler
+    └── messages.rs         # WsMessage enum (shared types)
+```
 
 ### Frontend (src/)
 ```
@@ -28,26 +39,24 @@ src/
 │   └── modals/
 │       ├── NewChatModal.tsx    # Create new chat
 │       ├── ProfileModal.tsx    # User profile editor
-│       └── NetworkModal.tsx    # LAN network settings
-├── services/                   # API abstraction layer (NEW)
+│       └── ContactInfoPanel.tsx # Contact details panel
+├── services/                   # API abstraction layer
 │   ├── index.ts               # Re-exports all services
 │   ├── userService.ts         # User API calls
 │   ├── chatService.ts         # Chat API calls
 │   ├── messageService.ts      # Message API calls
 │   ├── websocketService.ts    # WebSocket API calls
 │   └── cryptoService.ts       # E2E encryption API calls
-├── store/                      # Zustand stores (REFACTORED)
+├── store/                      # Zustand stores
 │   ├── chatStore.ts           # Chat list + active chat state
-│   ├── messageStore.ts        # Messages by chatId (NEW)
-│   ├── userStore.ts           # Current user state (NEW)
+│   ├── messageStore.ts        # Messages by chatId
+│   ├── userStore.ts           # Current user state
 │   └── uiStore.ts             # UI state (theme, modals)
-├── utils/                      # Utility functions (NEW)
-│   └── formatTime.ts          # Time formatting utilities
-├── hooks/
-│   ├── useWebSocket.ts        # WebSocket connection hook
-│   └── useCrypto.ts           # E2E encryption hook
+├── utils/
+│   ├── formatTime.ts          # Time formatting utilities
+│   └── cn.ts                  # Tailwind class merging utility
 ├── context/
-│   └── WebSocketContext.tsx   # WebSocket provider
+│   └── WebSocketContext.tsx   # WebSocket provider (connects to central server)
 ├── types/
 │   └── index.ts               # TypeScript interfaces
 ├── App.tsx
@@ -55,39 +64,63 @@ src/
 └── index.css                  # Global styles + animations
 ```
 
-### Backend (src-tauri/src/) - Modular Architecture
+### Backend (src-tauri/src/) - Tauri App
 ```
 src-tauri/src/
 ├── main.rs                    # Tauri entry point
 ├── lib.rs                     # App setup + command registration
 ├── db.rs                      # SQLite setup + seed data
-├── models/                    # Data structures (NEW)
+├── models/                    # Data structures
 │   ├── mod.rs                # Re-exports
 │   ├── user.rs               # User struct
 │   ├── chat.rs               # Chat struct
-│   └── message.rs            # Message struct
-├── commands/                  # IPC handlers by domain (NEW)
+│   ├── message.rs            # Message struct
+│   └── input.rs              # Input validation structs
+├── commands/                  # IPC handlers by domain
 │   ├── mod.rs                # Re-exports all commands
 │   ├── user.rs               # get_user, get_current_user, update_user, get_contacts, add_contact
 │   ├── chat.rs               # get_chats, create_chat
 │   ├── message.rs            # get_messages, send_message, mark_as_read, search_messages, receive_message
-│   └── websocket.rs          # broadcast_message, get_ws_port, connect_to_peer, get_network_status
-├── websocket/                 # WebSocket server (REFACTORED)
-│   ├── mod.rs                # Re-exports + init_websocket_server
-│   ├── server.rs             # WebSocketServer struct + NetworkStatus, PeerInfo
-│   ├── handlers.rs           # Connection handlers
+│   └── websocket.rs          # broadcast_message, connect_websocket, broadcast_presence
+├── websocket/                 # WebSocket client (connects to central server)
+│   ├── mod.rs                # Re-exports + init_websocket
+│   ├── client.rs             # WebSocketClient struct
 │   └── messages.rs           # WsMessage enum
-├── capabilities/              # Tauri 2.0 permissions
-│   └── default.json          # Window permissions (close, minimize, maximize, drag)
-├── crypto/                    # E2E encryption (REFACTORED)
+├── crypto/                    # E2E encryption
 │   ├── mod.rs                # Re-exports + Tauri commands
 │   ├── manager.rs            # CryptoManager struct with persistent storage
 │   ├── storage.rs            # OS Keyring + SQLite key storage
 │   └── types.rs              # SerializableKeyPair, EncryptedMessage, IdentityInfo
-└── utils/                     # Shared helpers (NEW)
+└── utils/                     # Shared helpers
     ├── mod.rs                # Re-exports
-    └── helpers.rs            # get_self_id(), generate_deterministic_chat_id()
+    ├── helpers.rs            # get_self_id(), generate_deterministic_chat_id()
+    └── validation.rs         # Input validation utilities
 ```
+
+## Architecture Overview
+
+### Central Server Model
+```
+┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
+│   App A     │────▶│  Pulse Server   │◀────│   App B     │
+│  (Client)   │◀────│  (ws://host:9001│────▶│  (Client)   │
+│  SQLite A   │     │   No Storage    │     │  SQLite B   │
+└─────────────┘     └─────────────────┘     └─────────────┘
+```
+
+- **Server**: Stateless message relay, presence tracking, no persistence
+- **Clients**: Full Tauri app with local SQLite, E2E encryption
+- **Messages**: Encrypted on client, relayed through server, stored locally
+
+### Message Flow
+1. User A types message → Client encrypts → Sends to server
+2. Server broadcasts to all connected clients
+3. Client B receives → Decrypts → Stores in local SQLite → Updates UI
+
+### Presence Flow
+1. Client connects → Sends `Connect { user_id }`
+2. Server broadcasts `Presence { is_online: true }` to all clients
+3. Client disconnects → Server broadcasts `Presence { is_online: false }`
 
 ## Architecture Patterns
 
@@ -112,8 +145,9 @@ Commands are organized by domain in separate files:
 - `commands::user` - User-related IPC handlers
 - `commands::chat` - Chat management handlers
 - `commands::message` - Message CRUD handlers
-- `commands::websocket` - WebSocket-related handlers
+- `commands::websocket` - WebSocket client handlers
 
-Shared utilities extracted to `utils/helpers.rs`:
+Shared utilities extracted to `utils/`:
 - `get_self_id(conn)` - Get current user's ID from database
 - `generate_deterministic_chat_id(id1, id2)` - Create consistent chat IDs
+- Input validation with `garde` crate

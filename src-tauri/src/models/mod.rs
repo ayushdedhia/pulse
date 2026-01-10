@@ -1,4 +1,5 @@
 mod chat;
+pub mod input;
 mod message;
 mod user;
 

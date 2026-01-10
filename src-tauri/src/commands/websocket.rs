@@ -1,6 +1,6 @@
 use crate::crypto::get_crypto_manager;
 use crate::db::Database;
-use crate::websocket::{get_session_token, get_ws_server, NetworkStatus, WsMessage};
+use crate::websocket::{get_ws_client, WsMessage};
 use tauri::State;
 
 /// Helper to get the peer user ID from a chat (for 1-on-1 chats)
@@ -35,7 +35,10 @@ pub fn broadcast_message(
     let encrypted_content = {
         let manager = get_crypto_manager();
         if let Some(peer_id) = get_peer_user_id(&conn, &chat_id, &sender_id) {
-            if manager.ensure_session(&conn, &peer_id, &chat_id).unwrap_or(false) {
+            if manager
+                .ensure_session(&conn, &peer_id, &chat_id)
+                .unwrap_or(false)
+            {
                 if let Ok(encrypted) = manager.encrypt(&content, &chat_id) {
                     if let Ok(json) = serde_json::to_string(&encrypted) {
                         format!("enc:{}", json)
@@ -62,35 +65,26 @@ pub fn broadcast_message(
         timestamp: chrono::Utc::now().timestamp_millis(),
     };
 
-    get_ws_server().broadcast(msg)?;
+    get_ws_client().broadcast(msg)?;
     Ok(true)
 }
 
+/// Get the central server URL
 #[tauri::command]
-pub fn get_ws_port() -> Result<u16, String> {
-    Ok(9001)
+pub async fn get_server_url() -> Result<String, String> {
+    Ok(get_ws_client().get_server_url().await)
 }
 
+/// Check if connected to the central server
 #[tauri::command]
-pub async fn get_local_ip() -> Result<Option<String>, String> {
-    Ok(get_ws_server().get_local_ip().await)
+pub async fn is_connected() -> Result<bool, String> {
+    Ok(get_ws_client().is_connected().await)
 }
 
+/// Connect to the central WebSocket server
 #[tauri::command]
-pub async fn get_network_status() -> Result<NetworkStatus, String> {
-    Ok(get_ws_server().get_network_status().await)
-}
-
-#[tauri::command]
-pub async fn connect_to_peer(ip: String, port: Option<u16>) -> Result<(), String> {
-    let port = port.unwrap_or(9001);
-    get_ws_server().connect_to_peer(&ip, port).await
-}
-
-/// Get the WebSocket authentication token for this session
-#[tauri::command]
-pub fn get_ws_auth_token() -> Result<String, String> {
-    Ok(get_session_token().to_string())
+pub async fn connect_websocket(user_id: String) -> Result<(), String> {
+    crate::websocket::init_websocket(&user_id).await
 }
 
 /// Broadcast current user's online presence to all connected peers
@@ -101,7 +95,7 @@ pub fn broadcast_presence(user_id: String) -> Result<(), String> {
         is_online: true,
         last_seen: None,
     };
-    get_ws_server().broadcast(msg)
+    get_ws_client().broadcast(msg)
 }
 
 /// Broadcast profile update to all connected peers
@@ -122,5 +116,5 @@ pub fn broadcast_profile(
         about,
         avatar_data,
     };
-    get_ws_server().broadcast(msg)
+    get_ws_client().broadcast(msg)
 }
