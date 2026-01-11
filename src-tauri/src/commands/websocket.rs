@@ -32,6 +32,10 @@ pub fn broadcast_message(
         )
         .unwrap_or_else(|_| "Unknown".to_string());
 
+    // Get the recipient (peer) user ID for routing
+    let recipient_id = get_peer_user_id(&conn, &chat_id, &sender_id)
+        .unwrap_or_else(|| sender_id.clone()); // Fallback to sender for group chats
+
     // Encrypt the message content before broadcasting
     let encrypted_content = {
         let manager = get_crypto_manager();
@@ -62,6 +66,7 @@ pub fn broadcast_message(
         chat_id,
         sender_id,
         sender_name,
+        recipient_id,
         content: encrypted_content,
         timestamp: chrono::Utc::now().timestamp_millis(),
         reply_to_id,

@@ -41,10 +41,10 @@ export function MessageInput() {
     }
   }, [message]);
 
-  // Focus input when chat changes
+  // Focus input when chat changes or when replying to a message
   useEffect(() => {
     textareaRef.current?.focus();
-  }, [activeChat?.id]);
+  }, [activeChat?.id, replyingTo]);
 
   // Send typing indicator
   const handleTyping = () => {

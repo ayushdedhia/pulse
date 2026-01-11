@@ -233,8 +233,12 @@ pub fn mark_as_read(db: State<'_, Database>, input: MarkAsReadInput) -> Result<V
 
     // Broadcast read receipt if there are messages to mark as read
     if !message_ids.is_empty() {
+        // Get the peer (original message sender) to route the receipt to them
+        let sender_id = get_peer_user_id(&conn, chat_id, &self_id)
+            .unwrap_or_else(|| self_id.clone());
         let read_receipt = WsMessage::ReadReceipt {
             chat_id: input.chat_id,
+            sender_id,
             user_id: self_id,
             message_ids: message_ids.clone(),
         };
@@ -454,6 +458,7 @@ pub fn receive_message(
     let delivery_receipt = WsMessage::DeliveryReceipt {
         message_id: id.clone(),
         chat_id: chat_id.clone(),
+        sender_id: sender_id.clone(),
         delivered_to: self_id.clone(),
     };
     let _ = get_ws_client().broadcast(delivery_receipt);

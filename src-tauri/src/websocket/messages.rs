@@ -9,6 +9,7 @@ pub enum WsMessage {
         chat_id: String,
         sender_id: String,
         sender_name: String,
+        recipient_id: String,
         content: String,
         timestamp: i64,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -30,11 +31,13 @@ pub enum WsMessage {
     DeliveryReceipt {
         message_id: String,
         chat_id: String,
+        sender_id: String,
         delivered_to: String,
     },
     #[serde(rename = "read_receipt")]
     ReadReceipt {
         chat_id: String,
+        sender_id: String,
         user_id: String,
         message_ids: Vec<String>,
     },
@@ -84,6 +87,7 @@ mod tests {
             chat_id: "chat1".to_string(),
             sender_id: "user1".to_string(),
             sender_name: "Alice".to_string(),
+            recipient_id: "user2".to_string(),
             content: "Hello!".to_string(),
             timestamp: 1234567890,
             reply_to_id: None,
@@ -162,6 +166,7 @@ mod tests {
         let msg = WsMessage::DeliveryReceipt {
             message_id: "msg1".to_string(),
             chat_id: "chat1".to_string(),
+            sender_id: "user1".to_string(),
             delivered_to: "user2".to_string(),
         };
 
@@ -171,11 +176,13 @@ mod tests {
         if let WsMessage::DeliveryReceipt {
             message_id,
             chat_id,
+            sender_id,
             delivered_to,
         } = parsed
         {
             assert_eq!(message_id, "msg1");
             assert_eq!(chat_id, "chat1");
+            assert_eq!(sender_id, "user1");
             assert_eq!(delivered_to, "user2");
         } else {
             panic!("Expected DeliveryReceipt");
@@ -186,6 +193,7 @@ mod tests {
     fn test_read_receipt_roundtrip() {
         let msg = WsMessage::ReadReceipt {
             chat_id: "chat1".to_string(),
+            sender_id: "user2".to_string(),
             user_id: "user1".to_string(),
             message_ids: vec!["msg1".to_string(), "msg2".to_string()],
         };
@@ -195,11 +203,13 @@ mod tests {
 
         if let WsMessage::ReadReceipt {
             chat_id,
+            sender_id,
             user_id,
             message_ids,
         } = parsed
         {
             assert_eq!(chat_id, "chat1");
+            assert_eq!(sender_id, "user2");
             assert_eq!(user_id, "user1");
             assert_eq!(message_ids, vec!["msg1", "msg2"]);
         } else {

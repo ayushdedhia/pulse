@@ -34,10 +34,10 @@ npm run tauri:test
 
 ### Architecture
 ```
-┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
-│   App A     │────▶│  Pulse Server   │◀────│   App B     │
-│  (Client)   │◀────│  (localhost:9001│────▶│  (Client)   │
-└─────────────┘     └─────────────────┘     └─────────────┘
+┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
+│   App A     │────▶│  Pulse Server    │◀────│   App B     │
+│  (Client)   │◀────│ (localhost:9001) │────▶│  (Client)   │
+└─────────────┘     └──────────────────┘     └─────────────┘
 ```
 
 - **Server**: Relays messages between clients, tracks online presence
@@ -68,14 +68,104 @@ Test instance uses separate database and target directory (`target-test/`).
 - E2E encryption (messages encrypted before leaving client)
 
 ## Server Configuration
-The server listens on `0.0.0.0:9001` by default. To change:
+
+### Environment Variables
+| Variable | Used By | Default | Description |
+|----------|---------|---------|-------------|
+| `PULSE_SERVER_URL` | Rust backend | `ws://localhost:9001` | WebSocket server URL for client connections |
+| `VITE_SERVER_URL` | Vite/Frontend | (none) | Frontend server URL (typically mirrors `PULSE_SERVER_URL`) |
+| `PULSE_SERVER_ADDR` | Server | `0.0.0.0:9001` | Address the server binds to |
+| `PORT` | Server (Railway) | 9001 | Port override (Railway sets this automatically) |
+
+### Running with Local Server (Development)
+
+**Default behavior** - no environment variables needed:
+
 ```bash
-PULSE_SERVER_ADDR=0.0.0.0:8080 cargo run
+# Terminal 1: Start local server
+cd pulse-server && cargo run
+# Output: Pulse server listening on 0.0.0.0:9001
+
+# Terminal 2: Start client (connects to ws://localhost:9001)
+npm run tauri dev
 ```
 
-The client connects to `ws://localhost:9001` by default. To change (for production):
+The client automatically connects to `ws://localhost:9001` when no `PULSE_SERVER_URL` is set.
+
+### Running with Production Server
+
+To test against the production Railway server:
+
+**PowerShell:**
+```powershell
+$env:PULSE_SERVER_URL="wss://pulse-production-5948.up.railway.app"
+$env:VITE_SERVER_URL="wss://pulse-production-5948.up.railway.app"
+npm run tauri dev
+```
+
+**Bash/Linux/macOS:**
 ```bash
-PULSE_SERVER_URL=wss://your-server.example.com npm run tauri dev
+export PULSE_SERVER_URL=wss://pulse-production-5948.up.railway.app
+export VITE_SERVER_URL=wss://pulse-production-5948.up.railway.app
+npm run tauri dev
+```
+
+**Important:** When using production server:
+- Messages are relayed through Railway (internet required)
+- You can chat with other users on the production server
+- DO NOT run the local server (clients won't connect to it anyway)
+
+### Switching Between Servers
+
+| Scenario | PULSE_SERVER_URL | Local Server |
+|----------|------------------|--------------|
+| Local development | (unset or `ws://localhost:9001`) | **Run it** |
+| Test with production | `wss://pulse-production-5948.up.railway.app` | Don't run |
+| LAN testing | `ws://<your-ip>:9001` | **Run it** |
+
+To clear environment variables:
+
+**PowerShell:**
+```powershell
+Remove-Item Env:PULSE_SERVER_URL -ErrorAction SilentlyContinue
+Remove-Item Env:VITE_SERVER_URL -ErrorAction SilentlyContinue
+```
+
+**Bash:**
+```bash
+unset PULSE_SERVER_URL VITE_SERVER_URL
+```
+
+## Dev Scripts (PowerShell)
+
+Located in `scripts/`:
+
+### `dev-client.ps1` - Launch Client
+```powershell
+# Normal launch (connects to default server based on env vars)
+.\scripts\dev-client.ps1
+
+# Fresh start (clears database first)
+.\scripts\dev-client.ps1 -Fresh
+
+# Second instance (separate data directory)
+.\scripts\dev-client.ps1 -Instance 2
+
+# Fresh second instance
+.\scripts\dev-client.ps1 -Fresh -Instance 2
+```
+
+### `local-test.ps1` - Full Local Test Setup
+Starts server + 2 clients with clean databases:
+```powershell
+# Full setup: cleanup + server + 2 clients
+.\scripts\local-test.ps1
+
+# Server only (launch clients manually)
+.\scripts\local-test.ps1 -ServerOnly
+
+# Skip cleanup (keep existing data)
+.\scripts\local-test.ps1 -SkipCleanup
 ```
 
 ## Production Deployment
@@ -87,8 +177,16 @@ Railway auto-deploys on push to main. The server reads the `PORT` env var automa
 
 ### Client Build
 To build the client for production with the Railway server:
+
+**PowerShell:**
+```powershell
+$env:VITE_SERVER_URL="wss://pulse-production-5948.up.railway.app"
+$env:PULSE_SERVER_URL="wss://pulse-production-5948.up.railway.app"
+npm run tauri build
+```
+
+**Bash:**
 ```bash
-# Set both env vars for frontend (Vite) and backend (Rust)
 export VITE_SERVER_URL=wss://pulse-production-5948.up.railway.app
 export PULSE_SERVER_URL=wss://pulse-production-5948.up.railway.app
 npm run tauri build
@@ -102,10 +200,3 @@ The installers are created in:
 1. Tag the version: `git tag vX.X.X && git push origin vX.X.X`
 2. Go to https://github.com/ayushdedhia/pulse/releases
 3. Create release from tag and upload the `.exe` installer
-
-### Testing with Production Server (Dev Mode)
-```bash
-export VITE_SERVER_URL=wss://pulse-production-5948.up.railway.app
-export PULSE_SERVER_URL=wss://pulse-production-5948.up.railway.app
-npm run tauri dev
-```

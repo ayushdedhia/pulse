@@ -63,6 +63,19 @@ pub async fn handle_connection(ws_stream: WebSocketStream<TcpStream>, state: Arc
         }
     }
 
+    // Flush pending messages for this user (messages queued while offline)
+    let pending = state.take_pending_messages(&user_id);
+    if !pending.is_empty() {
+        info!(
+            "Delivering {} pending messages to {}",
+            pending.len(),
+            user_id
+        );
+        for msg in pending {
+            state.send_to_user(&user_id, &msg);
+        }
+    }
+
     // Spawn task to forward messages from channel to WebSocket
     let send_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -151,23 +164,28 @@ fn handle_message(text: &str, sender_id: &str, state: &ServerState) {
     };
 
     match &msg {
-        WsMessage::ChatMessage { .. } => {
-            // Broadcast to all except sender - clients filter by chat_id
-            state.broadcast(text, Some(sender_id));
+        WsMessage::ChatMessage { recipient_id, .. } => {
+            // Route to specific recipient (queues if offline)
+            state.send_or_queue(recipient_id, text);
         }
         WsMessage::Typing { .. } => {
+            // Typing indicators are ephemeral - don't queue, just broadcast
             state.broadcast(text, Some(sender_id));
         }
         WsMessage::Presence { .. } => {
+            // Presence is broadcast to all online users
             state.broadcast(text, Some(sender_id));
         }
-        WsMessage::DeliveryReceipt { .. } => {
-            state.broadcast(text, Some(sender_id));
+        WsMessage::DeliveryReceipt { sender_id: original_sender, .. } => {
+            // Route receipt back to original message sender (queues if offline)
+            state.send_or_queue(original_sender, text);
         }
-        WsMessage::ReadReceipt { .. } => {
-            state.broadcast(text, Some(sender_id));
+        WsMessage::ReadReceipt { sender_id: original_sender, .. } => {
+            // Route receipt back to original message sender (queues if offline)
+            state.send_or_queue(original_sender, text);
         }
         WsMessage::ProfileUpdate { .. } => {
+            // Profile updates broadcast to all online users
             state.broadcast(text, Some(sender_id));
         }
         WsMessage::Connect { .. } => {

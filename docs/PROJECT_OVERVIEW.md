@@ -134,6 +134,16 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
   - `reply_to_id` field in messages table and WebSocket broadcasts
   - Works in both 1-on-1 and group chats
   - E2E tests for reply context menu interactions
+- **Offline message delivery**
+  - Messages sent to offline users are queued on the server
+  - Queued messages delivered when user reconnects
+  - Delivery/read receipts also queued for offline users
+  - FIFO ordering preserved (max 1000 messages per user)
+  - Typing indicators not queued (ephemeral)
+  - Targeted routing via `recipient_id` field
+- **Dev scripts for local testing**
+  - `scripts/dev-client.ps1` - Launch client with optional fresh DB (`-Fresh`) and multi-instance (`-Instance 2`)
+  - `scripts/local-test.ps1` - Full setup: cleanup + server + 2 clients
 
 ## Next Steps
 
@@ -145,6 +155,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [ ] Add zeroize for keys in memory
 
 ### Features
+- [ ] **Auto-updater** (HIGH PRIORITY) - Tauri plugin for seamless updates via GitHub Releases
 - [ ] Voice message recording
 - [ ] File/image upload and preview
 - [x] Store encryption keys persistently

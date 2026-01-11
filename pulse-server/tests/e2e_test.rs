@@ -243,6 +243,7 @@ async fn e2e_message_delivery_between_clients() {
         "chat_id": "chat-alice-bob",
         "sender_id": "alice",
         "sender_name": "Alice",
+        "recipient_id": "bob",
         "content": "Hello Bob! This is an E2E test message.",
         "timestamp": 1234567890
     });
@@ -328,11 +329,12 @@ async fn e2e_delivery_receipt_flow() {
         .is_ok()
     {}
 
-    // Receiver sends delivery receipt
+    // Receiver sends delivery receipt back to sender
     let receipt = json!({
         "type": "delivery_receipt",
         "message_id": "msg-123",
         "chat_id": "chat1",
+        "sender_id": "sender",
         "delivered_to": "receiver"
     });
     write2
@@ -372,10 +374,11 @@ async fn e2e_read_receipt_flow() {
         .is_ok()
     {}
 
-    // Reader sends read receipt
+    // Reader sends read receipt back to author
     let receipt = json!({
         "type": "read_receipt",
         "chat_id": "chat1",
+        "sender_id": "author",
         "user_id": "reader",
         "message_ids": ["msg-1", "msg-2", "msg-3"]
     });
@@ -478,19 +481,19 @@ async fn e2e_offline_presence_on_disconnect() {
 }
 
 #[tokio::test]
-async fn e2e_multiple_clients_broadcast() {
+async fn e2e_message_routed_to_specific_recipient() {
     let port = get_unique_port();
     let server = ServerProcess::start(port).expect("Failed to start server");
     server.wait_until_ready().await.expect("Server not ready");
 
     // Connect three clients
-    let client1 = connect_and_auth(&server.url(), "broadcaster")
+    let client1 = connect_and_auth(&server.url(), "sender")
         .await
         .expect("Failed to connect");
-    let client2 = connect_and_auth(&server.url(), "listener1")
+    let client2 = connect_and_auth(&server.url(), "recipient")
         .await
         .expect("Failed to connect");
-    let client3 = connect_and_auth(&server.url(), "listener2")
+    let client3 = connect_and_auth(&server.url(), "bystander")
         .await
         .expect("Failed to connect");
 
@@ -509,14 +512,15 @@ async fn e2e_multiple_clients_broadcast() {
         .is_ok()
     {}
 
-    // Broadcaster sends a message
+    // Sender sends a message to recipient only
     let chat_msg = json!({
         "type": "message",
-        "id": "broadcast-msg",
-        "chat_id": "group-chat",
-        "sender_id": "broadcaster",
-        "sender_name": "Broadcaster",
-        "content": "Hello everyone!",
+        "id": "targeted-msg",
+        "chat_id": "chat-sender-recipient",
+        "sender_id": "sender",
+        "sender_name": "Sender",
+        "recipient_id": "recipient",
+        "content": "Private message!",
         "timestamp": 1234567890
     });
     write1
@@ -524,16 +528,18 @@ async fn e2e_multiple_clients_broadcast() {
         .await
         .expect("Send failed");
 
-    // Both listeners should receive the message
+    // Recipient should receive the message
     let msg2 = read_message_of_type(&mut read2, "message", 5)
         .await
-        .expect("listener1 should receive");
-    let msg3 = read_message_of_type(&mut read3, "message", 5)
-        .await
-        .expect("listener2 should receive");
+        .expect("recipient should receive");
+    assert_eq!(msg2["content"], "Private message!");
 
-    assert_eq!(msg2["content"], "Hello everyone!");
-    assert_eq!(msg3["content"], "Hello everyone!");
+    // Bystander should NOT receive the message
+    let result = timeout(Duration::from_millis(500), read3.next()).await;
+    assert!(
+        result.is_err(),
+        "Bystander should not receive message intended for recipient"
+    );
 }
 
 #[tokio::test]
@@ -662,13 +668,14 @@ async fn e2e_reconnection_replaces_old_session() {
         .is_ok()
     {}
 
-    // New connection should be able to send messages
+    // New connection should be able to send messages to observer
     let msg = json!({
         "type": "message",
         "id": "reconnect-msg",
         "chat_id": "chat1",
         "sender_id": "reconnecting_user",
         "sender_name": "Reconnector",
+        "recipient_id": "observer",
         "content": "I reconnected!",
         "timestamp": 1234567890
     });
@@ -745,4 +752,424 @@ async fn e2e_bidirectional_presence_sync() {
         .expect("Bob should receive alice's presence");
     assert_eq!(bob_sees_alice["user_id"], "alice");
     assert_eq!(bob_sees_alice["is_online"], true);
+}
+
+// ============================================================================
+// Offline Message Delivery Tests
+// ============================================================================
+
+#[tokio::test]
+async fn e2e_offline_message_queued_and_delivered() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Alice connects
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let (mut write_alice, _) = client_alice.split();
+
+    // Bob is offline - Alice sends a message
+    let chat_msg = json!({
+        "type": "message",
+        "id": "offline-msg-1",
+        "chat_id": "chat-alice-bob",
+        "sender_id": "alice",
+        "sender_name": "Alice",
+        "recipient_id": "bob",
+        "content": "Hello Bob! You're offline.",
+        "timestamp": 1234567890
+    });
+    write_alice
+        .send(Message::Text(chat_msg.to_string().into()))
+        .await
+        .expect("Send failed");
+
+    // Small delay to ensure message is queued
+    sleep(Duration::from_millis(100)).await;
+
+    // Now Bob comes online
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (_, mut read_bob) = client_bob.split();
+
+    // Bob should receive the queued message (after presence notifications)
+    let received = read_message_of_type(&mut read_bob, "message", 5)
+        .await
+        .expect("Bob should receive queued message");
+
+    assert_eq!(received["id"], "offline-msg-1");
+    assert_eq!(received["sender_id"], "alice");
+    assert_eq!(received["content"], "Hello Bob! You're offline.");
+}
+
+#[tokio::test]
+async fn e2e_multiple_offline_messages_delivered_in_order() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Alice connects
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let (mut write_alice, _) = client_alice.split();
+
+    // Bob is offline - Alice sends multiple messages
+    for i in 1..=5 {
+        let chat_msg = json!({
+            "type": "message",
+            "id": format!("multi-msg-{}", i),
+            "chat_id": "chat-alice-bob",
+            "sender_id": "alice",
+            "sender_name": "Alice",
+            "recipient_id": "bob",
+            "content": format!("Message {}", i),
+            "timestamp": 1234567890 + i
+        });
+        write_alice
+            .send(Message::Text(chat_msg.to_string().into()))
+            .await
+            .expect("Send failed");
+    }
+
+    sleep(Duration::from_millis(100)).await;
+
+    // Bob comes online
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (_, mut read_bob) = client_bob.split();
+
+    // Bob should receive all 5 messages in order
+    for i in 1..=5 {
+        let received = read_message_of_type(&mut read_bob, "message", 5)
+            .await
+            .expect(&format!("Bob should receive message {}", i));
+
+        assert_eq!(received["id"], format!("multi-msg-{}", i));
+        assert_eq!(received["content"], format!("Message {}", i));
+    }
+}
+
+#[tokio::test]
+async fn e2e_offline_delivery_receipt_queued() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Bob connects first (he will receive a message and send receipt)
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (mut write_bob, _) = client_bob.split();
+
+    // Alice is offline - Bob sends a delivery receipt
+    let receipt = json!({
+        "type": "delivery_receipt",
+        "message_id": "msg-123",
+        "chat_id": "chat-alice-bob",
+        "sender_id": "alice",
+        "delivered_to": "bob"
+    });
+    write_bob
+        .send(Message::Text(receipt.to_string().into()))
+        .await
+        .expect("Send failed");
+
+    sleep(Duration::from_millis(100)).await;
+
+    // Alice comes online
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let (_, mut read_alice) = client_alice.split();
+
+    // Alice should receive the queued delivery receipt
+    let received = read_message_of_type(&mut read_alice, "delivery_receipt", 5)
+        .await
+        .expect("Alice should receive queued delivery receipt");
+
+    assert_eq!(received["message_id"], "msg-123");
+    assert_eq!(received["delivered_to"], "bob");
+}
+
+#[tokio::test]
+async fn e2e_offline_read_receipt_queued() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Bob connects
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (mut write_bob, _) = client_bob.split();
+
+    // Alice is offline - Bob sends a read receipt
+    let receipt = json!({
+        "type": "read_receipt",
+        "chat_id": "chat-alice-bob",
+        "sender_id": "alice",
+        "user_id": "bob",
+        "message_ids": ["msg-1", "msg-2", "msg-3"]
+    });
+    write_bob
+        .send(Message::Text(receipt.to_string().into()))
+        .await
+        .expect("Send failed");
+
+    sleep(Duration::from_millis(100)).await;
+
+    // Alice comes online
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let (_, mut read_alice) = client_alice.split();
+
+    // Alice should receive the queued read receipt
+    let received = read_message_of_type(&mut read_alice, "read_receipt", 5)
+        .await
+        .expect("Alice should receive queued read receipt");
+
+    assert_eq!(received["user_id"], "bob");
+    let msg_ids: Vec<String> = serde_json::from_value(received["message_ids"].clone()).unwrap();
+    assert_eq!(msg_ids, vec!["msg-1", "msg-2", "msg-3"]);
+}
+
+#[tokio::test]
+async fn e2e_typing_not_queued() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Alice connects
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let (mut write_alice, _) = client_alice.split();
+
+    // Bob is offline - Alice sends typing indicator (should NOT be queued)
+    let typing = json!({
+        "type": "typing",
+        "chat_id": "chat-alice-bob",
+        "user_id": "alice",
+        "is_typing": true
+    });
+    write_alice
+        .send(Message::Text(typing.to_string().into()))
+        .await
+        .expect("Send failed");
+
+    sleep(Duration::from_millis(100)).await;
+
+    // Bob comes online
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (_, mut read_bob) = client_bob.split();
+
+    // Drain presence notifications
+    sleep(Duration::from_millis(100)).await;
+    while timeout(Duration::from_millis(50), read_bob.next())
+        .await
+        .is_ok()
+    {}
+
+    // Bob should NOT receive any typing indicator (it wasn't queued)
+    let result = timeout(Duration::from_millis(500), read_bob.next()).await;
+    assert!(
+        result.is_err(),
+        "Typing indicators should not be queued for offline users"
+    );
+}
+
+#[tokio::test]
+async fn e2e_message_to_online_user_immediate() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Both Alice and Bob connect
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+
+    let (mut write_alice, _) = client_alice.split();
+    let (_, mut read_bob) = client_bob.split();
+
+    // Drain presence notifications
+    sleep(Duration::from_millis(100)).await;
+    while timeout(Duration::from_millis(50), read_bob.next())
+        .await
+        .is_ok()
+    {}
+
+    // Alice sends message to online Bob
+    let chat_msg = json!({
+        "type": "message",
+        "id": "online-msg-1",
+        "chat_id": "chat-alice-bob",
+        "sender_id": "alice",
+        "sender_name": "Alice",
+        "recipient_id": "bob",
+        "content": "Bob is online!",
+        "timestamp": 1234567890
+    });
+    write_alice
+        .send(Message::Text(chat_msg.to_string().into()))
+        .await
+        .expect("Send failed");
+
+    // Bob should receive immediately
+    let received = read_message_of_type(&mut read_bob, "message", 2)
+        .await
+        .expect("Bob should receive message immediately");
+
+    assert_eq!(received["id"], "online-msg-1");
+    assert_eq!(received["content"], "Bob is online!");
+}
+
+#[tokio::test]
+async fn e2e_concurrent_senders_to_offline_user() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Alice and Carol connect (Bob is offline)
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let client_carol = connect_and_auth(&server.url(), "carol")
+        .await
+        .expect("Failed to connect carol");
+
+    let (mut write_alice, _) = client_alice.split();
+    let (mut write_carol, _) = client_carol.split();
+
+    // Both send messages to offline Bob
+    let msg_alice = json!({
+        "type": "message",
+        "id": "alice-msg",
+        "chat_id": "chat-alice-bob",
+        "sender_id": "alice",
+        "sender_name": "Alice",
+        "recipient_id": "bob",
+        "content": "From Alice",
+        "timestamp": 1234567890
+    });
+    let msg_carol = json!({
+        "type": "message",
+        "id": "carol-msg",
+        "chat_id": "chat-carol-bob",
+        "sender_id": "carol",
+        "sender_name": "Carol",
+        "recipient_id": "bob",
+        "content": "From Carol",
+        "timestamp": 1234567891
+    });
+
+    write_alice
+        .send(Message::Text(msg_alice.to_string().into()))
+        .await
+        .unwrap();
+    write_carol
+        .send(Message::Text(msg_carol.to_string().into()))
+        .await
+        .unwrap();
+
+    sleep(Duration::from_millis(100)).await;
+
+    // Bob comes online
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (_, mut read_bob) = client_bob.split();
+
+    // Bob should receive both messages
+    let mut received_ids = Vec::new();
+    for _ in 0..2 {
+        let msg = read_message_of_type(&mut read_bob, "message", 5)
+            .await
+            .expect("Should receive message");
+        received_ids.push(msg["id"].as_str().unwrap().to_string());
+    }
+
+    assert!(received_ids.contains(&"alice-msg".to_string()));
+    assert!(received_ids.contains(&"carol-msg".to_string()));
+}
+
+#[tokio::test]
+async fn e2e_rapid_reconnect_delivers_all() {
+    let port = get_unique_port();
+    let server = ServerProcess::start(port).expect("Failed to start server");
+    server.wait_until_ready().await.expect("Server not ready");
+
+    // Alice connects
+    let client_alice = connect_and_auth(&server.url(), "alice")
+        .await
+        .expect("Failed to connect alice");
+    let (mut write_alice, _) = client_alice.split();
+
+    // Bob is offline, Alice sends message
+    let msg1 = json!({
+        "type": "message",
+        "id": "rapid-msg-1",
+        "chat_id": "chat",
+        "sender_id": "alice",
+        "sender_name": "Alice",
+        "recipient_id": "bob",
+        "content": "First message",
+        "timestamp": 1
+    });
+    write_alice
+        .send(Message::Text(msg1.to_string().into()))
+        .await
+        .unwrap();
+
+    sleep(Duration::from_millis(50)).await;
+
+    // Bob connects briefly then disconnects
+    {
+        let _bob1 = connect_and_auth(&server.url(), "bob").await.unwrap();
+        // Immediately drops
+    }
+
+    sleep(Duration::from_millis(50)).await;
+
+    // Alice sends another message while Bob is offline again
+    let msg2 = json!({
+        "type": "message",
+        "id": "rapid-msg-2",
+        "chat_id": "chat",
+        "sender_id": "alice",
+        "sender_name": "Alice",
+        "recipient_id": "bob",
+        "content": "Second message",
+        "timestamp": 2
+    });
+    write_alice
+        .send(Message::Text(msg2.to_string().into()))
+        .await
+        .unwrap();
+
+    sleep(Duration::from_millis(50)).await;
+
+    // Bob reconnects permanently
+    let client_bob = connect_and_auth(&server.url(), "bob")
+        .await
+        .expect("Failed to connect bob");
+    let (_, mut read_bob) = client_bob.split();
+
+    // Bob should receive the second message (first was delivered on first connect)
+    let received = read_message_of_type(&mut read_bob, "message", 5)
+        .await
+        .expect("Should receive queued message");
+
+    assert_eq!(received["id"], "rapid-msg-2");
 }

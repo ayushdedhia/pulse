@@ -1,16 +1,23 @@
 use dashmap::DashMap;
 use tokio::sync::mpsc;
+use tracing::info;
 
-/// Server state managing connected clients
+/// Maximum pending messages per user to prevent unbounded memory growth
+const MAX_PENDING_MESSAGES_PER_USER: usize = 1000;
+
+/// Server state managing connected clients and pending messages
 pub struct ServerState {
     /// user_id -> list of sender channels (supports multiple connections per user)
     pub clients: DashMap<String, Vec<mpsc::UnboundedSender<String>>>,
+    /// user_id -> list of pending messages (for offline users)
+    pending_messages: DashMap<String, Vec<String>>,
 }
 
 impl ServerState {
     pub fn new() -> Self {
         Self {
             clients: DashMap::new(),
+            pending_messages: DashMap::new(),
         }
     }
 
@@ -76,6 +83,52 @@ impl ServerState {
             .get(user_id)
             .map(|channels| !channels.is_empty())
             .unwrap_or(false)
+    }
+
+    /// Queue a message for an offline user
+    pub fn queue_message(&self, user_id: &str, message: String) {
+        let mut entry = self
+            .pending_messages
+            .entry(user_id.to_string())
+            .or_insert_with(Vec::new);
+
+        // Enforce queue limit - drop oldest if at capacity
+        if entry.len() >= MAX_PENDING_MESSAGES_PER_USER {
+            entry.remove(0);
+            info!(
+                "Queue limit reached for {}, dropped oldest message",
+                user_id
+            );
+        }
+        entry.push(message);
+    }
+
+    /// Take all pending messages for a user (clears the queue)
+    pub fn take_pending_messages(&self, user_id: &str) -> Vec<String> {
+        self.pending_messages
+            .remove(user_id)
+            .map(|(_, msgs)| msgs)
+            .unwrap_or_default()
+    }
+
+    /// Send to user if online, otherwise queue the message
+    /// Returns true if sent immediately, false if queued
+    pub fn send_or_queue(&self, user_id: &str, message: &str) -> bool {
+        if self.send_to_user(user_id, message) {
+            true
+        } else {
+            self.queue_message(user_id, message.to_string());
+            info!("Queued message for offline user {}", user_id);
+            false
+        }
+    }
+
+    /// Get the number of pending messages for a user
+    pub fn pending_count(&self, user_id: &str) -> usize {
+        self.pending_messages
+            .get(user_id)
+            .map(|msgs| msgs.len())
+            .unwrap_or(0)
     }
 }
 
@@ -233,5 +286,91 @@ mod tests {
     fn test_default_impl() {
         let state = ServerState::default();
         assert!(state.clients.is_empty());
+    }
+
+    #[test]
+    fn test_queue_message_stores_correctly() {
+        let state = ServerState::new();
+
+        state.queue_message("user1", "message1".to_string());
+        state.queue_message("user1", "message2".to_string());
+
+        assert_eq!(state.pending_count("user1"), 2);
+        assert_eq!(state.pending_count("user2"), 0);
+    }
+
+    #[test]
+    fn test_take_pending_messages_clears_queue() {
+        let state = ServerState::new();
+
+        state.queue_message("user1", "msg1".to_string());
+        state.queue_message("user1", "msg2".to_string());
+        state.queue_message("user1", "msg3".to_string());
+
+        let messages = state.take_pending_messages("user1");
+        assert_eq!(messages.len(), 3);
+        assert_eq!(messages[0], "msg1");
+        assert_eq!(messages[1], "msg2");
+        assert_eq!(messages[2], "msg3");
+
+        // Queue should be empty now
+        assert_eq!(state.pending_count("user1"), 0);
+        assert!(state.take_pending_messages("user1").is_empty());
+    }
+
+    #[test]
+    fn test_send_or_queue_routes_correctly() {
+        let state = ServerState::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+
+        // User is offline - should queue
+        assert!(!state.send_or_queue("offline_user", "queued msg"));
+        assert_eq!(state.pending_count("offline_user"), 1);
+
+        // User comes online
+        state.add_client("online_user".to_string(), tx);
+
+        // User is online - should send immediately
+        assert!(state.send_or_queue("online_user", "direct msg"));
+        assert_eq!(rx.try_recv().unwrap(), "direct msg");
+        assert_eq!(state.pending_count("online_user"), 0);
+    }
+
+    #[test]
+    fn test_queue_limit_drops_oldest() {
+        let state = ServerState::new();
+
+        // Fill queue to limit
+        for i in 0..MAX_PENDING_MESSAGES_PER_USER {
+            state.queue_message("user1", format!("msg{}", i));
+        }
+        assert_eq!(state.pending_count("user1"), MAX_PENDING_MESSAGES_PER_USER);
+
+        // Add one more - should drop oldest
+        state.queue_message("user1", "new_msg".to_string());
+        assert_eq!(state.pending_count("user1"), MAX_PENDING_MESSAGES_PER_USER);
+
+        // Verify oldest was dropped and newest is present
+        let messages = state.take_pending_messages("user1");
+        assert_eq!(messages[0], "msg1"); // msg0 was dropped
+        assert_eq!(messages[messages.len() - 1], "new_msg");
+    }
+
+    #[test]
+    fn test_pending_messages_per_user_isolation() {
+        let state = ServerState::new();
+
+        state.queue_message("user1", "user1_msg".to_string());
+        state.queue_message("user2", "user2_msg".to_string());
+
+        assert_eq!(state.pending_count("user1"), 1);
+        assert_eq!(state.pending_count("user2"), 1);
+
+        let user1_msgs = state.take_pending_messages("user1");
+        assert_eq!(user1_msgs.len(), 1);
+        assert_eq!(user1_msgs[0], "user1_msg");
+
+        // user2's messages should be unaffected
+        assert_eq!(state.pending_count("user2"), 1);
     }
 }

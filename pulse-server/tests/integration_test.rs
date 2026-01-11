@@ -127,13 +127,14 @@ async fn test_message_broadcast() {
     // Drain presence notification from client2's perspective
     let _ = timeout(Duration::from_millis(200), read2.next()).await;
 
-    // User1 sends a message
+    // User1 sends a message to user2
     let chat_msg = json!({
         "type": "message",
         "id": "msg1",
         "chat_id": "chat1",
         "sender_id": "user1",
         "sender_name": "Alice",
+        "recipient_id": "user2",
         "content": "Hello from user1!",
         "timestamp": 1234567890
     });
@@ -168,13 +169,14 @@ async fn test_sender_does_not_receive_own_message() {
     let client1 = connect_client(port, "user1").await;
     let (mut write1, mut read1) = client1.split();
 
-    // User1 sends a message
+    // User1 sends a message to user2 (who is offline)
     let chat_msg = json!({
         "type": "message",
         "id": "msg1",
         "chat_id": "chat1",
         "sender_id": "user1",
         "sender_name": "Alice",
+        "recipient_id": "user2",
         "content": "Test message",
         "timestamp": 1234567890
     });
@@ -237,7 +239,7 @@ async fn test_typing_indicator_broadcast() {
 }
 
 #[tokio::test]
-async fn test_delivery_receipt_broadcast() {
+async fn test_delivery_receipt_routed_to_sender() {
     let (port, server_handle) = start_test_server().await;
 
     let client1 = connect_client(port, "user1").await;
@@ -249,11 +251,12 @@ async fn test_delivery_receipt_broadcast() {
     // Drain presence notification from user1's perspective
     let _ = timeout(Duration::from_millis(200), read1.next()).await;
 
-    // User2 sends delivery receipt
+    // User2 sends delivery receipt back to user1 (the original sender)
     let receipt = json!({
         "type": "delivery_receipt",
         "message_id": "msg1",
         "chat_id": "chat1",
+        "sender_id": "user1",
         "delivered_to": "user2"
     });
     write2
@@ -318,7 +321,7 @@ async fn test_offline_presence_on_disconnect() {
 }
 
 #[tokio::test]
-async fn test_multiple_clients_receive_broadcast() {
+async fn test_message_routed_to_specific_recipient() {
     let (port, server_handle) = start_test_server().await;
 
     // Connect three clients
@@ -335,14 +338,15 @@ async fn test_multiple_clients_receive_broadcast() {
     while timeout(Duration::from_millis(50), read2.next()).await.is_ok() {}
     while timeout(Duration::from_millis(50), read3.next()).await.is_ok() {}
 
-    // User1 sends a message
+    // User1 sends a message specifically to user2
     let chat_msg = json!({
         "type": "message",
         "id": "msg1",
         "chat_id": "chat1",
         "sender_id": "user1",
         "sender_name": "Alice",
-        "content": "Broadcast test",
+        "recipient_id": "user2",
+        "content": "Only for user2",
         "timestamp": 1234567890
     });
     write1
@@ -350,28 +354,27 @@ async fn test_multiple_clients_receive_broadcast() {
         .await
         .unwrap();
 
-    // Both user2 and user3 should receive the message
+    // User2 should receive the message
     let msg2 = timeout(Duration::from_secs(5), read2.next())
         .await
         .expect("Timeout")
         .expect("Closed")
         .expect("Error");
 
-    let msg3 = timeout(Duration::from_secs(5), read3.next())
-        .await
-        .expect("Timeout")
-        .expect("Closed")
-        .expect("Error");
-
-    for msg in [msg2, msg3] {
-        if let Message::Text(text) = msg {
-            let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
-            assert_eq!(parsed["type"], "message");
-            assert_eq!(parsed["content"], "Broadcast test");
-        } else {
-            panic!("Expected text message");
-        }
+    if let Message::Text(text) = msg2 {
+        let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed["type"], "message");
+        assert_eq!(parsed["content"], "Only for user2");
+    } else {
+        panic!("Expected text message");
     }
+
+    // User3 should NOT receive the message (it was routed to user2 only)
+    let result = timeout(Duration::from_millis(500), read3.next()).await;
+    assert!(
+        result.is_err(),
+        "User3 should not receive message intended for user2"
+    );
 
     server_handle.abort();
 }

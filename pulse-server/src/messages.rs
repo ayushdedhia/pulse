@@ -10,6 +10,7 @@ pub enum WsMessage {
         chat_id: String,
         sender_id: String,
         sender_name: String,
+        recipient_id: String,
         content: String,
         timestamp: i64,
     },
@@ -29,11 +30,13 @@ pub enum WsMessage {
     DeliveryReceipt {
         message_id: String,
         chat_id: String,
+        sender_id: String,
         delivered_to: String,
     },
     #[serde(rename = "read_receipt")]
     ReadReceipt {
         chat_id: String,
+        sender_id: String,
         user_id: String,
         message_ids: Vec<String>,
     },
@@ -84,6 +87,7 @@ mod tests {
             chat_id: "chat1".to_string(),
             sender_id: "user1".to_string(),
             sender_name: "Alice".to_string(),
+            recipient_id: "user2".to_string(),
             content: "Hello, world!".to_string(),
             timestamp: 1234567890,
         };
@@ -152,6 +156,7 @@ mod tests {
         let msg = WsMessage::DeliveryReceipt {
             message_id: "msg1".to_string(),
             chat_id: "chat1".to_string(),
+            sender_id: "user1".to_string(),
             delivered_to: "user2".to_string(),
         };
 
@@ -165,6 +170,7 @@ mod tests {
     fn test_read_receipt_serialization() {
         let msg = WsMessage::ReadReceipt {
             chat_id: "chat1".to_string(),
+            sender_id: "user2".to_string(),
             user_id: "user1".to_string(),
             message_ids: vec!["msg1".to_string(), "msg2".to_string()],
         };
