@@ -75,5 +75,37 @@ PULSE_SERVER_ADDR=0.0.0.0:8080 cargo run
 
 The client connects to `ws://localhost:9001` by default. To change (for production):
 ```bash
-PULSE_SERVER_URL=ws://your-server:9001 npm run tauri dev
+PULSE_SERVER_URL=wss://your-server.example.com npm run tauri dev
+```
+
+## Production Deployment
+
+### Server (Railway)
+The server is deployed to Railway at `wss://pulse-production-5948.up.railway.app`.
+
+Railway auto-deploys on push to main. The server reads the `PORT` env var automatically.
+
+### Client Build
+To build the client for production with the Railway server:
+```bash
+# Set both env vars for frontend (Vite) and backend (Rust)
+export VITE_SERVER_URL=wss://pulse-production-5948.up.railway.app
+export PULSE_SERVER_URL=wss://pulse-production-5948.up.railway.app
+npm run tauri build
+```
+
+The installers are created in:
+- `target/release/bundle/nsis/Pulse_x.x.x_x64-setup.exe`
+- `target/release/bundle/msi/Pulse_x.x.x_x64_en-US.msi`
+
+### GitHub Releases
+1. Tag the version: `git tag vX.X.X && git push origin vX.X.X`
+2. Go to https://github.com/ayushdedhia/pulse/releases
+3. Create release from tag and upload the `.exe` installer
+
+### Testing with Production Server (Dev Mode)
+```bash
+export VITE_SERVER_URL=wss://pulse-production-5948.up.railway.app
+export PULSE_SERVER_URL=wss://pulse-production-5948.up.railway.app
+npm run tauri dev
 ```

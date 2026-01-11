@@ -89,6 +89,12 @@ pub async fn connect_websocket(user_id: String) -> Result<(), String> {
     crate::websocket::init_websocket(&user_id).await
 }
 
+/// Gracefully disconnect from the central WebSocket server
+#[tauri::command]
+pub fn disconnect_websocket() {
+    get_ws_client().disconnect()
+}
+
 /// Broadcast current user's online presence to all connected peers
 #[tauri::command]
 pub fn broadcast_presence(user_id: String) -> Result<(), String> {

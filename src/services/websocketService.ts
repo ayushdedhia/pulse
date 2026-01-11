@@ -10,6 +10,14 @@ export const websocketService = {
     return invoke<void>("connect_websocket", { userId });
   },
 
+  /**
+   * Gracefully disconnect from the central server
+   * Called automatically on app close, but can be called manually
+   */
+  disconnect: (): Promise<void> => {
+    return invoke<void>("disconnect_websocket");
+  },
+
   broadcastMessage: (
     messageId: string,
     chatId: string,

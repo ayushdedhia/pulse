@@ -2,19 +2,27 @@ use super::messages::WsMessage;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-use tokio::sync::{mpsc, Mutex as TokioMutex};
+use tokio::sync::{broadcast, mpsc, Mutex as TokioMutex};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
 /// Server URL: checked at compile time via env!, falls back to runtime env var, then default
 const DEFAULT_SERVER_URL: &str = "ws://localhost:9001";
 
+/// Internal message type for the write channel
+enum WriteMessage {
+    Data(String),
+    Close,
+}
+
 /// WebSocket client that connects to the central Pulse server
 pub struct WebSocketClient {
     server_url: Arc<TokioMutex<String>>,
     /// Use std::sync::Mutex for write_tx so it can be accessed from sync Tauri commands
-    write_tx: Arc<StdMutex<Option<mpsc::UnboundedSender<String>>>>,
+    write_tx: Arc<StdMutex<Option<mpsc::UnboundedSender<WriteMessage>>>>,
     connected: Arc<TokioMutex<bool>>,
+    /// Shutdown signal broadcaster
+    shutdown_tx: broadcast::Sender<()>,
 }
 
 impl Default for WebSocketClient {
@@ -42,10 +50,13 @@ impl WebSocketClient {
 
         info!(url = %server_url, "Using WebSocket server URL");
 
+        let (shutdown_tx, _) = broadcast::channel(1);
+
         Self {
             server_url: Arc::new(TokioMutex::new(server_url)),
             write_tx: Arc::new(StdMutex::new(None)),
             connected: Arc::new(TokioMutex::new(false)),
+            shutdown_tx,
         }
     }
 
@@ -65,9 +76,16 @@ impl WebSocketClient {
         let user_id = user_id.to_string();
         let write_tx = self.write_tx.clone();
         let connected = self.connected.clone();
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             loop {
+                // Check for shutdown before attempting connection
+                if shutdown_rx.try_recv().is_ok() {
+                    info!("Shutdown signal received, stopping reconnection");
+                    break;
+                }
+
                 info!(url = %server_url, "Connecting to Pulse server");
 
                 match connect_async(&server_url).await {
@@ -112,20 +130,43 @@ impl WebSocketClient {
                         }
 
                         // Create channel for outgoing messages
-                        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+                        let (tx, mut rx) = mpsc::unbounded_channel::<WriteMessage>();
                         {
                             let mut guard = write_tx.lock().unwrap();
                             *guard = Some(tx);
                         }
 
                         // Message loop
+                        let mut should_reconnect = true;
                         loop {
                             tokio::select! {
+                                // Check for shutdown signal
+                                _ = shutdown_rx.recv() => {
+                                    info!("Shutdown signal received, closing connection gracefully");
+                                    // Send close frame
+                                    if let Err(e) = ws_write.send(Message::Close(None)).await {
+                                        warn!(error = %e, "Failed to send close frame");
+                                    }
+                                    should_reconnect = false;
+                                    break;
+                                }
                                 // Send outgoing messages
                                 Some(msg) = rx.recv() => {
-                                    if ws_write.send(Message::Text(msg.into())).await.is_err() {
-                                        error!("Failed to send message to server");
-                                        break;
+                                    match msg {
+                                        WriteMessage::Data(data) => {
+                                            if ws_write.send(Message::Text(data.into())).await.is_err() {
+                                                error!("Failed to send message to server");
+                                                break;
+                                            }
+                                        }
+                                        WriteMessage::Close => {
+                                            info!("Close requested, sending close frame");
+                                            if let Err(e) = ws_write.send(Message::Close(None)).await {
+                                                warn!(error = %e, "Failed to send close frame");
+                                            }
+                                            should_reconnect = false;
+                                            break;
+                                        }
                                     }
                                 }
                                 // Receive incoming messages (frontend handles these directly via its own WS connection)
@@ -155,6 +196,10 @@ impl WebSocketClient {
                         }
                         *connected.lock().await = false;
                         info!("Disconnected from Pulse server");
+
+                        if !should_reconnect {
+                            break;
+                        }
                     }
                     Err(e) => {
                         error!(error = %e, url = %server_url, "Failed to connect to Pulse server");
@@ -170,6 +215,19 @@ impl WebSocketClient {
         Ok(())
     }
 
+    /// Gracefully disconnect from the server
+    pub fn disconnect(&self) {
+        info!("Initiating graceful disconnect");
+        // Signal shutdown to stop reconnection loop
+        let _ = self.shutdown_tx.send(());
+        // Also send close message through the channel if connected
+        if let Ok(guard) = self.write_tx.lock() {
+            if let Some(tx) = guard.as_ref() {
+                let _ = tx.send(WriteMessage::Close);
+            }
+        }
+    }
+
     /// Send a message to the server
     pub fn send(&self, message: WsMessage) -> Result<(), String> {
         let json = serde_json::to_string(&message).map_err(|e| e.to_string())?;
@@ -179,7 +237,7 @@ impl WebSocketClient {
         let guard = self.write_tx.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
 
         if let Some(tx) = guard.as_ref() {
-            tx.send(json).map_err(|e| format!("Failed to send to server: {}", e))?;
+            tx.send(WriteMessage::Data(json)).map_err(|e| format!("Failed to send to server: {}", e))?;
             Ok(())
         } else {
             // Not connected to server - log warning but don't fail

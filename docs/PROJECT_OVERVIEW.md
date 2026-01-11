@@ -158,3 +158,8 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - WebSocket binds to 0.0.0.0:9001 (accessible on LAN)
 - Multi-instance works on same machine via separate Tauri configs
 - Custom titlebar requires capabilities/default.json for window permissions in Tauri 2.0
+
+## Production Deployment
+- **Server**: Hosted on Railway at `wss://pulse-production-5948.up.railway.app`
+- **Client**: Distributed via GitHub Releases (https://github.com/ayushdedhia/pulse/releases)
+- TLS/WSS support enabled via `native-tls` feature in tokio-tungstenite

@@ -93,6 +93,7 @@ pub fn run() {
             commands::websocket::get_server_url,
             commands::websocket::is_connected,
             commands::websocket::connect_websocket,
+            commands::websocket::disconnect_websocket,
             commands::websocket::broadcast_presence,
             commands::websocket::broadcast_profile,
             // Crypto commands
@@ -108,6 +109,14 @@ pub fn run() {
             crypto::get_peer_key,
             crypto::ensure_chat_session,
         ])
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                info!("Window close requested, disconnecting WebSocket gracefully");
+                websocket::get_ws_client().disconnect();
+                // Give a moment for the close frame to be sent
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
