@@ -1,9 +1,10 @@
 import { format, isSameDay } from "date-fns";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useChatStore } from "../../store/chatStore";
 import { useMessageStore } from "../../store/messageStore";
 import { useUserStore } from "../../store/userStore";
+import type { Message } from "../../types";
 import { DateDivider } from "./DateDivider";
 import { MessageBubble } from "./MessageBubble";
 
@@ -12,9 +13,18 @@ export function MessageList() {
   const messages = useMessageStore((state) => state.messages);
   const currentUser = useUserStore((state) => state.currentUser);
   const markAsRead = useMessageStore((state) => state.markAsRead);
+  const setReplyingTo = useMessageStore((state) => state.setReplyingTo);
   const containerRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const chatMessages = activeChat ? messages[activeChat.id] || [] : [];
+
+  // Build a map of message ID to message for quick lookup
+  const messageMap = useMemo(() => {
+    const map = new Map<string, Message>();
+    chatMessages.forEach((msg) => map.set(msg.id, msg));
+    return map;
+  }, [chatMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -57,6 +67,24 @@ export function MessageList() {
     };
   }, [activeChat, markAsRead, loadMessages]);
 
+  // Handle reply action
+  const handleReply = useCallback((message: Message) => {
+    setReplyingTo(message);
+  }, [setReplyingTo]);
+
+  // Handle scroll to message
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    const element = messageRefs.current.get(messageId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Add highlight effect
+      element.classList.add("message-highlight");
+      setTimeout(() => {
+        element.classList.remove("message-highlight");
+      }, 1500);
+    }
+  }, []);
+
   // Group messages by date
   const groupedMessages = chatMessages.reduce<{
     date: Date;
@@ -95,14 +123,33 @@ export function MessageList() {
             const isFirstInGroup = !prevMessage || prevMessage.sender_id !== message.sender_id;
             const isOwnMessage = currentUser ? message.sender_id === currentUser.id : false;
 
+            // Get the replied message if this message is a reply
+            const repliedMessage = message.reply_to_id
+              ? messageMap.get(message.reply_to_id)
+              : undefined;
+
             return (
-              <MessageBubble
+              <div
                 key={message.id}
-                message={message}
-                isOwn={isOwnMessage}
-                showTail={isFirstInGroup}
-                isGroupChat={activeChat?.chat_type === "group"}
-              />
+                ref={(el) => {
+                  if (el) {
+                    messageRefs.current.set(message.id, el);
+                  } else {
+                    messageRefs.current.delete(message.id);
+                  }
+                }}
+              >
+                <MessageBubble
+                  message={message}
+                  isOwn={isOwnMessage}
+                  showTail={isFirstInGroup}
+                  isGroupChat={activeChat?.chat_type === "group"}
+                  repliedMessage={repliedMessage}
+                  currentUserId={currentUser?.id}
+                  onReply={handleReply}
+                  onScrollToMessage={handleScrollToMessage}
+                />
+              </div>
             );
           })}
         </div>

@@ -15,10 +15,11 @@ export const messageService = {
   sendMessage: (
     chatId: string,
     content: string,
-    messageType: string = "text"
+    messageType: string = "text",
+    replyToId?: string
   ): Promise<Message> => {
     return invoke<Message>("send_message", {
-      input: { chat_id: chatId, content, message_type: messageType },
+      input: { chat_id: chatId, content, message_type: messageType, reply_to_id: replyToId },
     });
   },
 
@@ -42,7 +43,8 @@ export const messageService = {
     senderId: string,
     senderName: string | null,
     content: string,
-    timestamp: number
+    timestamp: number,
+    replyToId?: string
   ): Promise<Message> => {
     return invoke<Message>("receive_message", {
       id,
@@ -51,6 +53,7 @@ export const messageService = {
       senderName,
       content,
       timestamp,
+      replyToId,
     });
   },
 };

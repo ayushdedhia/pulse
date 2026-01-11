@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useWebSocketContext } from "../../context/WebSocketContext";
 import { useChatStore } from "../../store/chatStore";
 import { useMessageStore } from "../../store/messageStore";
+import { useUserStore } from "../../store/userStore";
+import { getUserDisplayName } from "../../types";
 import { EmojiPicker } from "./EmojiPicker";
 
 export function MessageInput() {
@@ -26,6 +28,9 @@ export function MessageInput() {
 
   const activeChat = useChatStore((state) => state.activeChat);
   const sendMessage = useMessageStore((state) => state.sendMessage);
+  const replyingTo = useMessageStore((state) => state.replyingTo);
+  const setReplyingTo = useMessageStore((state) => state.setReplyingTo);
+  const currentUser = useUserStore((state) => state.currentUser);
   const { sendTyping } = useWebSocketContext();
 
   // Auto-resize textarea
@@ -63,8 +68,9 @@ export function MessageInput() {
 
     setIsSending(true);
     try {
-      await sendMessage(activeChat.id, message);
+      await sendMessage(activeChat.id, message, replyingTo?.id);
       setMessage("");
+      setReplyingTo(null);
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
@@ -87,8 +93,39 @@ export function MessageInput() {
 
   const hasMessage = message.trim().length > 0;
 
+  const isOwnMessage = replyingTo && currentUser && replyingTo.sender_id === currentUser.id;
+
   return (
     <div className="relative bg-[var(--bg-secondary)] px-4 py-[10px] transition-theme">
+      {/* Reply Preview Bar - absolutely positioned above input */}
+      {replyingTo && (
+        <div className="absolute bottom-full left-4 right-4 mb-0 z-10">
+          <div className="flex items-stretch bg-[var(--bg-secondary)] rounded-t-lg overflow-hidden animate-slide-down border-b border-[var(--border-light)]">
+            <div
+              className="w-1 flex-shrink-0"
+              style={{ backgroundColor: isOwnMessage ? "var(--accent)" : "#53BDEB" }}
+            />
+            <div className="flex-1 px-3 py-2 min-w-0">
+              <p
+                className="text-[13px] font-medium truncate"
+                style={{ color: isOwnMessage ? "var(--accent)" : "#53BDEB" }}
+              >
+                {isOwnMessage ? "You" : getUserDisplayName(replyingTo.sender)}
+              </p>
+              <p className="text-[13px] text-[var(--text-secondary)] truncate">
+                {replyingTo.content}
+              </p>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="px-3 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Emoji Picker */}
       {showEmojiPicker && (
         <div className="absolute z-50 mb-2 bottom-full left-0 animate-scale-in">

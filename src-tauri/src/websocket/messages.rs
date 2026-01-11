@@ -11,6 +11,8 @@ pub enum WsMessage {
         sender_name: String,
         content: String,
         timestamp: i64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_to_id: Option<String>,
     },
     #[serde(rename = "typing")]
     Typing {
@@ -84,6 +86,7 @@ mod tests {
             sender_name: "Alice".to_string(),
             content: "Hello!".to_string(),
             timestamp: 1234567890,
+            reply_to_id: None,
         };
 
         let json = serde_json::to_string(&msg).unwrap();

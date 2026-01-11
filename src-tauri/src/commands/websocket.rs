@@ -20,6 +20,7 @@ pub fn broadcast_message(
     chat_id: String,
     content: String,
     sender_id: String,
+    reply_to_id: Option<String>,
 ) -> Result<bool, String> {
     // Get sender's name from database
     let conn = db.0.lock().map_err(|e| e.to_string())?;
@@ -63,6 +64,7 @@ pub fn broadcast_message(
         sender_name,
         content: encrypted_content,
         timestamp: chrono::Utc::now().timestamp_millis(),
+        reply_to_id,
     };
 
     get_ws_client().broadcast(msg)?;

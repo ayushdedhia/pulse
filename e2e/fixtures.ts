@@ -50,4 +50,28 @@ export class ChatPage {
   async waitForMessage(content: string, timeout = 5000) {
     await this.page.waitForSelector(`text="${content}"`, { timeout });
   }
+
+  async getMessageBubbles() {
+    return this.page.locator('[class*="bubble-tail"]').all();
+  }
+
+  async rightClickMessage(index: number) {
+    const bubbles = await this.getMessageBubbles();
+    if (bubbles.length > index) {
+      await bubbles[index].click({ button: "right" });
+    }
+  }
+
+  async clickReplyInContextMenu() {
+    await this.page.locator('button:has-text("Reply")').click();
+  }
+
+  async isReplyBarVisible() {
+    return this.page.locator('text="Replying to"').isVisible().catch(() => false) ||
+           this.page.locator('[class*="animate-slide-down"]').isVisible().catch(() => false);
+  }
+
+  async closeReplyBar() {
+    await this.page.locator('[class*="animate-slide-down"] button').click();
+  }
 }

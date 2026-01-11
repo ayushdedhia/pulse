@@ -14,9 +14,10 @@ export const websocketService = {
     messageId: string,
     chatId: string,
     content: string,
-    senderId: string
+    senderId: string,
+    replyToId?: string
   ): Promise<boolean> => {
-    return invoke<boolean>("broadcast_message", { messageId, chatId, content, senderId });
+    return invoke<boolean>("broadcast_message", { messageId, chatId, content, senderId, replyToId });
   },
 
   getWsPort: (): Promise<number> => {

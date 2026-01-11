@@ -8,19 +8,22 @@ interface MessageStore {
   messages: Record<string, Message[]>;
   isLoading: boolean;
   error: string | null;
+  replyingTo: Message | null;
 
   loadMessages: (chatId: string) => Promise<void>;
-  sendMessage: (chatId: string, content: string) => Promise<void>;
+  sendMessage: (chatId: string, content: string, replyToId?: string) => Promise<void>;
   addMessage: (chatId: string, message: Message) => void;
   markAsRead: (chatId: string) => Promise<void>;
   searchMessages: (query: string) => Promise<Message[]>;
   updateMessageStatus: (messageId: string, status: Message["status"]) => Promise<void>;
+  setReplyingTo: (message: Message | null) => void;
 }
 
 export const useMessageStore = create<MessageStore>((set) => ({
   messages: {},
   isLoading: false,
   error: null,
+  replyingTo: null,
 
   loadMessages: async (chatId: string) => {
     set({ isLoading: true });
@@ -36,7 +39,7 @@ export const useMessageStore = create<MessageStore>((set) => ({
     }
   },
 
-  sendMessage: async (chatId: string, content: string) => {
+  sendMessage: async (chatId: string, content: string, replyToId?: string) => {
     if (!content.trim()) return;
 
     const currentUser = useUserStore.getState().currentUser;
@@ -45,7 +48,8 @@ export const useMessageStore = create<MessageStore>((set) => ({
       const message = await messageService.sendMessage(
         chatId,
         content.trim(),
-        "text"
+        "text",
+        replyToId
       );
 
       // Add message to local state
@@ -65,7 +69,8 @@ export const useMessageStore = create<MessageStore>((set) => ({
           message.id,
           chatId,
           content.trim(),
-          currentUser?.id || "self"
+          currentUser?.id || "self",
+          replyToId
         );
       } catch (wsError) {
         console.debug("WebSocket broadcast failed:", wsError);
@@ -161,5 +166,9 @@ export const useMessageStore = create<MessageStore>((set) => ({
     } catch (error) {
       console.error("Failed to update message status:", error);
     }
+  },
+
+  setReplyingTo: (message: Message | null) => {
+    set({ replyingTo: message });
   },
 }));

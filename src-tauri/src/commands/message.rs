@@ -154,9 +154,9 @@ pub fn send_message(db: State<'_, Database>, input: SendMessageInput) -> Result<
     let encrypted_content = encrypt_content(&conn, &input.content, chat_id, &self_id)?;
 
     conn.execute(
-        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, status, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'sent', ?6)",
-        (&msg_id, chat_id, &self_id, &encrypted_content, &input.message_type, now),
+        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, reply_to_id, status, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'sent', ?7)",
+        (&msg_id, chat_id, &self_id, &encrypted_content, &input.message_type, &input.reply_to_id, now),
     )
     .map_err(|e| e.to_string())?;
 
@@ -195,7 +195,7 @@ pub fn send_message(db: State<'_, Database>, input: SendMessageInput) -> Result<
         content: Some(input.content),
         message_type: input.message_type,
         media_url: None,
-        reply_to_id: None,
+        reply_to_id: input.reply_to_id,
         status: "sent".to_string(),
         created_at: now,
         edited_at: None,
@@ -340,6 +340,7 @@ pub fn receive_message(
     sender_name: Option<String>,
     content: String,
     timestamp: i64,
+    reply_to_id: Option<String>,
 ) -> Result<Message, String> {
     // Validate input
     validate_user_id(&sender_id)?;
@@ -416,9 +417,9 @@ pub fn receive_message(
     // The content might be encrypted (prefixed with "enc:") from the sender
     // Store as-is in the database (preserving encryption)
     conn.execute(
-        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, status, created_at)
-         VALUES (?1, ?2, ?3, ?4, 'text', 'received', ?5)",
-        (&id, &chat_id, &sender_id, &content, timestamp),
+        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, reply_to_id, status, created_at)
+         VALUES (?1, ?2, ?3, ?4, 'text', ?5, 'received', ?6)",
+        (&id, &chat_id, &sender_id, &content, &reply_to_id, timestamp),
     )
     .map_err(|e| e.to_string())?;
 
@@ -468,7 +469,7 @@ pub fn receive_message(
         content: Some(decrypted_content),
         message_type: "text".to_string(),
         media_url: None,
-        reply_to_id: None,
+        reply_to_id,
         status: "received".to_string(),
         created_at: timestamp,
         edited_at: None,

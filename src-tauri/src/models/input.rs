@@ -57,6 +57,8 @@ pub struct SendMessageInput {
     pub content: String,
     #[garde(custom(validate_message_type))]
     pub message_type: String,
+    #[garde(length(max = MAX_USER_ID_LENGTH))]
+    pub reply_to_id: Option<String>,
 }
 
 /// Input for marking messages as read

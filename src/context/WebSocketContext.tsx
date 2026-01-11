@@ -55,6 +55,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 message_type: string;
                 status: string;
                 created_at: number;
+                reply_to_id?: string;
                 sender?: { id: string; name: string };
               }>("receive_message", {
                 id: data.id as string,
@@ -63,6 +64,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 senderName: (data.sender_name as string) || null,
                 content: data.content as string,
                 timestamp: data.timestamp as number,
+                replyToId: (data.reply_to_id as string) || undefined,
               });
 
               // Add message directly to store instead of reloading all

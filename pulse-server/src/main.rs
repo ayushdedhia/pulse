@@ -34,27 +34,37 @@ async fn main() {
 
     info!("Pulse server listening on {}", addr);
 
-    // Accept connections
+    // Accept connections with graceful shutdown
     loop {
-        match listener.accept().await {
-            Ok((stream, peer_addr)) => {
-                info!("New connection from {}", peer_addr);
-
-                let state = state.clone();
-                tokio::spawn(async move {
-                    match accept_async(stream).await {
-                        Ok(ws_stream) => {
-                            handle_connection(ws_stream, state).await;
-                        }
-                        Err(e) => {
-                            error!("WebSocket handshake failed for {}: {}", peer_addr, e);
-                        }
-                    }
-                });
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                info!("Received shutdown signal, closing server...");
+                break;
             }
-            Err(e) => {
-                error!("Failed to accept connection: {}", e);
+            result = listener.accept() => {
+                match result {
+                    Ok((stream, peer_addr)) => {
+                        info!("New connection from {}", peer_addr);
+
+                        let state = state.clone();
+                        tokio::spawn(async move {
+                            match accept_async(stream).await {
+                                Ok(ws_stream) => {
+                                    handle_connection(ws_stream, state).await;
+                                }
+                                Err(e) => {
+                                    error!("WebSocket handshake failed for {}: {}", peer_addr, e);
+                                }
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        error!("Failed to accept connection: {}", e);
+                    }
+                }
             }
         }
     }
+
+    info!("Server shutdown complete");
 }
