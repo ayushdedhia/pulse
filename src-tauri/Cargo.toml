@@ -23,7 +23,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 
 # WebSocket
 tokio = { version = "1", features = ["full"] }
-tokio-tungstenite = "0.24"
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
 
 # LAN Networking

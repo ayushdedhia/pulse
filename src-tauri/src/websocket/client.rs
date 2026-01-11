@@ -26,10 +26,21 @@ impl Default for WebSocketClient {
 impl WebSocketClient {
     pub fn new() -> Self {
         // Priority: build-time env -> runtime env -> default
-        let server_url = option_env!("PULSE_SERVER_URL")
+        let build_time_url = option_env!("PULSE_SERVER_URL");
+        let runtime_url = std::env::var("PULSE_SERVER_URL").ok();
+
+        info!(
+            build_time = ?build_time_url,
+            runtime = ?runtime_url,
+            "WebSocket URL sources"
+        );
+
+        let server_url = build_time_url
             .map(String::from)
-            .or_else(|| std::env::var("PULSE_SERVER_URL").ok())
+            .or(runtime_url)
             .unwrap_or_else(|| DEFAULT_SERVER_URL.to_string());
+
+        info!(url = %server_url, "Using WebSocket server URL");
 
         Self {
             server_url: Arc::new(TokioMutex::new(server_url)),
