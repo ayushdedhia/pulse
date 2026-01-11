@@ -30,6 +30,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] Resizable chat list panel (280-500px)
 - [x] Smooth animations (fade-in, slide-up, scale-in)
 - [ ] Splash screen
+- [x] Message reply (WhatsApp-style hover dropdown menu)
 
 ### Core Features
 - [ ] User authentication (phone/email)
@@ -125,6 +126,14 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
   - Real-time status updates via WebSocket (DeliveryReceipt, ReadReceipt)
   - Auto-sends read receipts when window gains focus
   - Optimized store updates using addMessage instead of full reload
+- **Message reply feature (WhatsApp-style)**
+  - Hover dropdown menu on messages with Reply option
+  - Reply preview bar above MessageInput showing quoted message
+  - Reply quote displayed inside MessageBubble
+  - Click-to-scroll to original message with highlight animation
+  - `reply_to_id` field in messages table and WebSocket broadcasts
+  - Works in both 1-on-1 and group chats
+  - E2E tests for reply context menu interactions
 
 ## Next Steps
 

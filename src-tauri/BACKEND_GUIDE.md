@@ -67,13 +67,13 @@ Shared utilities extracted to `utils/helpers.rs`:
 
 ### Message Commands
 - `get_messages` - Get messages for a chat
-- `send_message` - Send a new message
+- `send_message` - Send a new message (supports `reply_to_id` for replies)
 - `mark_as_read` - Mark messages as read
 - `search_messages` - Search messages
-- `receive_message` - Handle incoming message
+- `receive_message` - Handle incoming message (supports `reply_to_id`)
 
 ### WebSocket Commands
-- `broadcast_message` - Broadcast to connected peers
+- `broadcast_message` - Broadcast to connected peers (supports `reply_to_id`)
 - `get_ws_port` - Get WebSocket server port
 - `connect_to_peer` - Connect to peer by IP
 - `get_network_status` - Get current network status
@@ -94,7 +94,7 @@ Shared utilities extracted to `utils/helpers.rs`:
 - `users` - User accounts
 - `chats` - Chat conversations
 - `chat_participants` - Chat membership
-- `messages` - Message storage
+- `messages` - Message storage (includes `reply_to_id` for reply threading)
 - `public_keys` - Stored public keys for E2E
 
 ## Security Rules

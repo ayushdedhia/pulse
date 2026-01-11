@@ -1,9 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 
+import { messageService, userService, websocketService } from "../services";
 import { useChatStore } from "../store/chatStore";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
+import type { Message } from "../types";
 
 // Get store functions without subscribing to state changes
 const getMessageActions = () => useMessageStore.getState();
@@ -47,28 +48,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           if (data.chat_id && data.id && data.sender_id && data.content !== undefined) {
             try {
               // receive_message returns the saved message with the correct deterministic chat_id
-              const savedMessage = await invoke<{
-                id: string;
-                chat_id: string;
-                sender_id: string;
-                content: string | null;
-                message_type: string;
-                status: string;
-                created_at: number;
-                reply_to_id?: string;
-                sender?: { id: string; name: string };
-              }>("receive_message", {
-                id: data.id as string,
-                chatId: data.chat_id as string,
-                senderId: data.sender_id as string,
-                senderName: (data.sender_name as string) || null,
-                content: data.content as string,
-                timestamp: data.timestamp as number,
-                replyToId: (data.reply_to_id as string) || undefined,
-              });
+              const savedMessage = await messageService.receiveMessage(
+                data.id as string,
+                data.chat_id as string,
+                data.sender_id as string,
+                (data.sender_name as string) || null,
+                data.content as string,
+                data.timestamp as number,
+                (data.reply_to_id as string) || undefined
+              );
 
               // Add message directly to store instead of reloading all
-              getMessageActions().addMessage(savedMessage.chat_id, savedMessage as import("../types").Message);
+              getMessageActions().addMessage(savedMessage.chat_id, savedMessage as Message);
               getChatActions().loadChats();
             } catch (e) {
               // Message might be from ourselves or already exists, that's ok
@@ -144,9 +135,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             setIsConnected(true);
             // Connect the Tauri backend client and broadcast presence
             if (currentUser) {
-              invoke("connect_websocket", { userId: currentUser.id })
-                .then(() => invoke("broadcast_presence", { userId: currentUser.id }))
-                .catch((e) => console.error("Failed to initialize backend WebSocket:", e));
+              websocketService.connect(currentUser.id)
+                .then(() => websocketService.broadcastPresence(currentUser.id))
+                .catch((err: Error) => console.error("Failed to initialize backend WebSocket:", err));
             }
           } else {
             console.warn("Server authentication failed:", data.message);
@@ -168,29 +159,27 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
                 // Save avatar locally if bytes are provided
                 if (data.avatar_data) {
-                  const localPath = await invoke<string>("save_peer_avatar", {
-                    userId: data.user_id as string,
-                    avatarData: data.avatar_data as string,
-                  });
+                  const localPath = await userService.savePeerAvatar(
+                    data.user_id as string,
+                    data.avatar_data as string
+                  );
                   avatarUrl = localPath;
                 }
 
                 // Update contact in database
-                await invoke("update_user", {
-                  user: {
-                    id: data.user_id as string,
-                    name: data.name as string,
-                    phone: data.phone as string | undefined,
-                    avatar_url: avatarUrl,
-                    about: data.about as string | undefined,
-                    is_online: true,
-                  },
+                await userService.updateUser({
+                  id: data.user_id as string,
+                  name: data.name as string,
+                  phone: data.phone as string | undefined,
+                  avatar_url: avatarUrl,
+                  about: data.about as string | undefined,
+                  is_online: true,
                 });
 
                 // Refresh chat list to show updated names/avatars
                 getChatActions().loadChats();
-              } catch (e) {
-                console.error("Failed to process profile update:", e);
+              } catch (err) {
+                console.error("Failed to process profile update:", err);
               }
             })();
           }

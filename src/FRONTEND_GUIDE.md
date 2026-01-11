@@ -47,7 +47,8 @@ src/
 │   ├── userStore.ts           # Current user state
 │   └── uiStore.ts             # UI state (theme, modals)
 ├── utils/
-│   └── formatTime.ts          # Time formatting utilities
+│   ├── formatTime.ts          # Time formatting utilities
+│   └── cn.ts                  # Tailwind class merging utility (clsx + tailwind-merge)
 ├── hooks/
 │   ├── useWebSocket.ts        # WebSocket connection hook
 │   └── useCrypto.ts           # E2E encryption hook
@@ -73,7 +74,7 @@ import { userService, chatService, messageService } from "./services";
 State is split by domain for better separation of concerns:
 - **userStore**: `currentUser`, `loadCurrentUser()`, `updateCurrentUser()`
 - **chatStore**: `chats[]`, `activeChat`, `loadChats()`, `setActiveChat()`, `createChat()`
-- **messageStore**: `messages{}`, `loadMessages()`, `sendMessage()`, `markAsRead()`
+- **messageStore**: `messages{}`, `replyingTo`, `loadMessages()`, `sendMessage()`, `markAsRead()`, `setReplyingTo()`
 - **uiStore**: `theme`, `showNewChat`, `showProfile`, etc.
 
 ## Design Reference

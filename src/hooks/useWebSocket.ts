@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { websocketService } from "../services";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
 
@@ -33,7 +33,7 @@ export function useWebSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const port = await invoke<number>("get_ws_port");
+      const port = await websocketService.getWsPort();
       const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
       ws.onopen = () => {
