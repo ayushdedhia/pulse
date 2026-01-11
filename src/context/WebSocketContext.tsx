@@ -10,7 +10,7 @@ import type { Message } from "../types";
 const getMessageActions = () => useMessageStore.getState();
 const getChatActions = () => useChatStore.getState();
 
-const SERVER_URL = "ws://localhost:9001";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:9001";
 
 interface WsMessage {
   type: string;

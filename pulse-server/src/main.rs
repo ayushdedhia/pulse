@@ -6,7 +6,7 @@ use tokio_tungstenite::accept_async;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-const DEFAULT_ADDR: &str = "0.0.0.0:9001";
+const DEFAULT_PORT: u16 = 9001;
 
 #[tokio::main]
 async fn main() {
@@ -17,8 +17,16 @@ async fn main() {
         )
         .init();
 
-    // Get bind address from env or use default
-    let addr = std::env::var("PULSE_SERVER_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_string());
+    // Get bind address: PULSE_SERVER_ADDR takes priority, then PORT (Railway), then default
+    let addr = if let Ok(addr) = std::env::var("PULSE_SERVER_ADDR") {
+        addr
+    } else {
+        let port = std::env::var("PORT")
+            .ok()
+            .and_then(|p| p.parse::<u16>().ok())
+            .unwrap_or(DEFAULT_PORT);
+        format!("0.0.0.0:{}", port)
+    };
 
     // Create server state
     let state = Arc::new(ServerState::new());

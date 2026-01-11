@@ -6,6 +6,7 @@ use tokio::sync::{mpsc, Mutex as TokioMutex};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
+/// Server URL: checked at compile time via env!, falls back to runtime env var, then default
 const DEFAULT_SERVER_URL: &str = "ws://localhost:9001";
 
 /// WebSocket client that connects to the central Pulse server
@@ -24,8 +25,11 @@ impl Default for WebSocketClient {
 
 impl WebSocketClient {
     pub fn new() -> Self {
-        let server_url = std::env::var("PULSE_SERVER_URL")
-            .unwrap_or_else(|_| DEFAULT_SERVER_URL.to_string());
+        // Priority: build-time env -> runtime env -> default
+        let server_url = option_env!("PULSE_SERVER_URL")
+            .map(String::from)
+            .or_else(|| std::env::var("PULSE_SERVER_URL").ok())
+            .unwrap_or_else(|| DEFAULT_SERVER_URL.to_string());
 
         Self {
             server_url: Arc::new(TokioMutex::new(server_url)),
