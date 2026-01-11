@@ -51,6 +51,11 @@ tracing-appender = "0.2"
 tauri-plugin-dialog = "2.5.0"
 tauri-plugin-fs = "2.4.5"
 
+# Auto-updater (desktop only)
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

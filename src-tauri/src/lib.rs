@@ -53,6 +53,14 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle();
 
+            // Initialize auto-updater plugin (desktop only)
+            #[cfg(desktop)]
+            {
+                app_handle.plugin(tauri_plugin_updater::Builder::new().build())?;
+                app_handle.plugin(tauri_plugin_process::init())?;
+                info!("Updater plugin initialized");
+            }
+
             // Log the actual log directory for user reference
             if let Ok(app_dir) = app_handle.path().app_data_dir() {
                 info!(path = ?app_dir, "App data directory");
