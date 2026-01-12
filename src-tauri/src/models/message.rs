@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::url_preview::UrlPreview;
 use super::user::User;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -12,6 +13,7 @@ pub struct Message {
     pub message_type: String,
     pub media_url: Option<String>,
     pub reply_to_id: Option<String>,
+    pub url_preview: Option<UrlPreview>,
     pub status: String,
     pub created_at: i64,
     pub edited_at: Option<i64>,

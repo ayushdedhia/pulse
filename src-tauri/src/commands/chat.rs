@@ -57,6 +57,7 @@ pub fn get_chats(db: State<'_, Database>) -> Result<Vec<Chat>, String> {
                     message_type: row.get(4)?,
                     media_url: row.get(5)?,
                     reply_to_id: row.get(6)?,
+                    url_preview: None,
                     status: row.get(7)?,
                     created_at: row.get(8)?,
                     edited_at: row.get(9)?,
@@ -93,6 +94,7 @@ pub fn get_chats(db: State<'_, Database>) -> Result<Vec<Chat>, String> {
                         about: row.get(5)?,
                         last_seen: row.get(6)?,
                         is_online: row.get::<_, i32>(7)? == 1,
+                        link_previews_enabled: true,
                     })
                 }) {
                     chat.participant = Some(user);
@@ -192,6 +194,7 @@ pub fn get_chat_by_id(
                     about: row.get(5)?,
                     last_seen: row.get(6)?,
                     is_online: row.get::<_, i32>(7)? == 1,
+                    link_previews_enabled: true,
                 })
             },
         ) {

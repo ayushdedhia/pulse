@@ -4,7 +4,7 @@ import { messageService, userService, websocketService } from "../services";
 import { useChatStore } from "../store/chatStore";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
-import type { Message } from "../types";
+import type { Message, UrlPreview } from "../types";
 
 // Get store functions without subscribing to state changes
 const getMessageActions = () => useMessageStore.getState();
@@ -47,6 +47,16 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           // Save incoming message to local database, then add to store
           if (data.chat_id && data.id && data.sender_id && data.content !== undefined) {
             try {
+              // Convert WebSocket url_preview format to UrlPreview type
+              const urlPreview = data.url_preview ? {
+                url: (data.url_preview as { url: string }).url,
+                title: (data.url_preview as { title?: string }).title,
+                description: (data.url_preview as { description?: string }).description,
+                image_url: (data.url_preview as { image_url?: string }).image_url,
+                site_name: (data.url_preview as { site_name?: string }).site_name,
+                fetched_at: Date.now(),
+              } as UrlPreview : undefined;
+
               // receive_message returns the saved message with the correct deterministic chat_id
               const savedMessage = await messageService.receiveMessage(
                 data.id as string,
@@ -55,7 +65,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 (data.sender_name as string) || null,
                 data.content as string,
                 data.timestamp as number,
-                (data.reply_to_id as string) || undefined
+                (data.reply_to_id as string) || undefined,
+                urlPreview
               );
 
               // Add message directly to store instead of reloading all
@@ -174,6 +185,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                   avatar_url: avatarUrl,
                   about: data.about as string | undefined,
                   is_online: true,
+                  link_previews_enabled: true,
                 });
 
                 // Refresh chat list to show updated names/avatars
@@ -189,9 +201,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     [currentUser]
   );
 
+  const userId = currentUser?.id;
+
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    if (!currentUser) return;
+    if (!userId) return;
 
     try {
       console.log("Connecting to Pulse server at", SERVER_URL);
@@ -200,7 +214,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       ws.onopen = () => {
         console.log("WebSocket connected, authenticating...");
         // Send connect message with user ID
-        ws.send(JSON.stringify({ type: "connect", user_id: currentUser.id }));
+        ws.send(JSON.stringify({ type: "connect", user_id: userId }));
       };
 
       ws.onmessage = (event) => {
@@ -234,7 +248,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         connect();
       }, 3000);
     }
-  }, [currentUser, handleMessage]);
+  }, [userId, handleMessage]);
 
   const sendTyping = useCallback(
     (chatId: string, isTyping: boolean) => {
@@ -253,7 +267,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (currentUser) {
+    if (userId) {
       connect();
     }
 
@@ -263,7 +277,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       }
       wsRef.current?.close();
     };
-  }, [currentUser, connect]);
+  }, [userId, connect]);
 
   return (
     <WebSocketContext.Provider value={{ isConnected, typingUsers, sendTyping, onlineUsers }}>

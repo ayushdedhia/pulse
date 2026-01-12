@@ -63,14 +63,15 @@ export const useMessageStore = create<MessageStore>((set) => ({
       // Update chat's last message in chat store
       useChatStore.getState().updateChatLastMessage(chatId, message);
 
-      // Broadcast via WebSocket for real-time sync
+      // Broadcast via WebSocket for real-time sync (include URL preview if present)
       try {
         await websocketService.broadcastMessage(
           message.id,
           chatId,
           content.trim(),
           currentUser?.id || "self",
-          replyToId
+          replyToId,
+          message.url_preview
         );
       } catch (wsError) {
         console.debug("WebSocket broadcast failed:", wsError);

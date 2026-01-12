@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { NetworkStatus } from "../types";
+import { NetworkStatus, UrlPreview } from "../types";
 
 export const websocketService = {
   /**
@@ -23,9 +23,10 @@ export const websocketService = {
     chatId: string,
     content: string,
     senderId: string,
-    replyToId?: string
+    replyToId?: string,
+    urlPreview?: UrlPreview
   ): Promise<boolean> => {
-    return invoke<boolean>("broadcast_message", { messageId, chatId, content, senderId, replyToId });
+    return invoke<boolean>("broadcast_message", { messageId, chatId, content, senderId, replyToId, urlPreview });
   },
 
   getWsPort: (): Promise<number> => {

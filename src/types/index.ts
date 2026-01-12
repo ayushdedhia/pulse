@@ -9,6 +9,8 @@ export interface User {
   about?: string;
   last_seen?: number;
   is_online: boolean;
+  /** Whether to fetch and show link previews (default: true) */
+  link_previews_enabled: boolean;
 }
 
 /** Get the display name for a user (alias if set, otherwise original name) */
@@ -29,6 +31,15 @@ export interface Chat {
   participant?: User;
 }
 
+export interface UrlPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  image_url?: string;
+  site_name?: string;
+  fetched_at: number;
+}
+
 export interface Message {
   id: string;
   chat_id: string;
@@ -38,6 +49,7 @@ export interface Message {
   message_type: "text" | "image" | "video" | "audio" | "document";
   media_url?: string;
   reply_to_id?: string;
+  url_preview?: UrlPreview;
   status: "sent" | "delivered" | "read";
   created_at: number;
   edited_at?: number;

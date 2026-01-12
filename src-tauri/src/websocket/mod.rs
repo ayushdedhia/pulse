@@ -2,7 +2,7 @@ mod client;
 mod messages;
 
 pub use client::WebSocketClient;
-pub use messages::WsMessage;
+pub use messages::{WsMessage, WsUrlPreview};
 
 use std::sync::OnceLock;
 

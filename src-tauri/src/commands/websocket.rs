@@ -1,6 +1,7 @@
 use crate::crypto::get_crypto_manager;
 use crate::db::Database;
-use crate::websocket::{get_ws_client, WsMessage};
+use crate::models::UrlPreview;
+use crate::websocket::{get_ws_client, WsMessage, WsUrlPreview};
 use tauri::State;
 
 /// Helper to get the peer user ID from a chat (for 1-on-1 chats)
@@ -21,6 +22,7 @@ pub fn broadcast_message(
     content: String,
     sender_id: String,
     reply_to_id: Option<String>,
+    url_preview: Option<UrlPreview>,
 ) -> Result<bool, String> {
     // Get sender's name from database
     let conn = db.0.lock().map_err(|e| e.to_string())?;
@@ -61,6 +63,15 @@ pub fn broadcast_message(
         }
     };
 
+    // Convert UrlPreview to WsUrlPreview for transmission
+    let ws_preview = url_preview.map(|p| WsUrlPreview {
+        url: p.url,
+        title: p.title,
+        description: p.description,
+        image_url: p.image_url,
+        site_name: p.site_name,
+    });
+
     let msg = WsMessage::ChatMessage {
         id: message_id,
         chat_id,
@@ -70,6 +81,7 @@ pub fn broadcast_message(
         content: encrypted_content,
         timestamp: chrono::Utc::now().timestamp_millis(),
         reply_to_id,
+        url_preview: ws_preview,
     };
 
     get_ws_client().broadcast(msg)?;

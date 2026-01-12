@@ -1,10 +1,11 @@
+use crate::commands::url_preview::{extract_first_url, get_cached_preview};
 use crate::crypto::get_crypto_manager;
 use crate::db::Database;
 use crate::models::input::{
     GetMessagesInput, MarkAsReadInput, SearchMessagesInput, SendMessageInput,
     UpdateMessageStatusInput, ValidateExt,
 };
-use crate::models::{Message, User};
+use crate::models::{Message, UrlPreview, User};
 use crate::utils::validation::validate_user_id;
 use crate::utils::{generate_deterministic_chat_id, get_self_id};
 use crate::websocket::{get_ws_client, WsMessage};
@@ -42,6 +43,22 @@ fn encrypt_content(
     // No session available, store as plaintext (for backward compatibility)
     // In production, you might want to reject unencrypted messages
     Ok(content.to_string())
+}
+
+/// Check if current user has link previews enabled
+fn is_link_previews_enabled(conn: &rusqlite::Connection) -> bool {
+    conn.query_row(
+        "SELECT link_previews_enabled FROM users WHERE is_self = 1",
+        [],
+        |row| row.get::<_, i32>(0),
+    )
+    .map(|v| v == 1)
+    .unwrap_or(true)
+}
+
+/// Load URL preview from database
+fn load_url_preview(conn: &rusqlite::Connection, preview_url: Option<String>) -> Option<UrlPreview> {
+    preview_url.and_then(|url| get_cached_preview(conn, &url))
 }
 
 /// Decrypt message content if it's encrypted
@@ -86,7 +103,7 @@ pub fn get_messages(db: State<'_, Database>, input: GetMessagesInput) -> Result<
     let mut stmt = conn
         .prepare(
             "SELECT m.id, m.chat_id, m.sender_id, m.content, m.message_type, m.media_url,
-                    m.reply_to_id, m.status, m.created_at, m.edited_at,
+                    m.reply_to_id, m.status, m.created_at, m.edited_at, m.preview_url,
                     u.id, u.name, u.display_name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
              FROM messages m
              LEFT JOIN users u ON m.sender_id = u.id
@@ -96,42 +113,48 @@ pub fn get_messages(db: State<'_, Database>, input: GetMessagesInput) -> Result<
         )
         .map_err(|e| e.to_string())?;
 
-    let messages: Vec<Message> = stmt
+    let messages: Vec<(Message, Option<String>)> = stmt
         .query_map([chat_id, &input.limit.to_string(), &input.offset.to_string()], |row| {
-            Ok(Message {
-                id: row.get(0)?,
-                chat_id: row.get(1)?,
-                sender_id: row.get(2)?,
-                sender: Some(User {
-                    id: row.get(10)?,
-                    name: row.get(11)?,
-                    display_name: row.get(12)?,
-                    phone: row.get(13)?,
-                    avatar_url: row.get(14)?,
-                    about: row.get(15)?,
-                    last_seen: row.get(16)?,
-                    is_online: row.get::<_, i32>(17)? == 1,
-                }),
-                content: row.get(3)?,
-                message_type: row.get(4)?,
-                media_url: row.get(5)?,
-                reply_to_id: row.get(6)?,
-                status: row.get(7)?,
-                created_at: row.get(8)?,
-                edited_at: row.get(9)?,
-            })
+            Ok((
+                Message {
+                    id: row.get(0)?,
+                    chat_id: row.get(1)?,
+                    sender_id: row.get(2)?,
+                    sender: Some(User {
+                        id: row.get(11)?,
+                        name: row.get(12)?,
+                        display_name: row.get(13)?,
+                        phone: row.get(14)?,
+                        avatar_url: row.get(15)?,
+                        about: row.get(16)?,
+                        last_seen: row.get(17)?,
+                        is_online: row.get::<_, i32>(18)? == 1,
+                        link_previews_enabled: true,
+                    }),
+                    content: row.get(3)?,
+                    message_type: row.get(4)?,
+                    media_url: row.get(5)?,
+                    reply_to_id: row.get(6)?,
+                    url_preview: None,
+                    status: row.get(7)?,
+                    created_at: row.get(8)?,
+                    edited_at: row.get(9)?,
+                },
+                row.get::<_, Option<String>>(10)?,
+            ))
         })
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();
 
-    // Decrypt messages
+    // Decrypt messages and load URL previews
     let decrypted_messages: Vec<Message> = messages
         .into_iter()
-        .map(|mut msg| {
+        .map(|(mut msg, preview_url)| {
             if let Some(ref content) = msg.content {
                 msg.content = Some(decrypt_content(&conn, content, chat_id, &self_id));
             }
+            msg.url_preview = load_url_preview(&conn, preview_url);
             msg
         })
         .collect();
@@ -140,37 +163,80 @@ pub fn get_messages(db: State<'_, Database>, input: GetMessagesInput) -> Result<
 }
 
 #[tauri::command]
-pub fn send_message(db: State<'_, Database>, input: SendMessageInput) -> Result<Message, String> {
+pub async fn send_message(db: State<'_, Database>, input: SendMessageInput) -> Result<Message, String> {
     input.validate_input()?;
 
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let chat_id = &input.chat_id;
+    let chat_id = input.chat_id.clone();
     let now = chrono::Utc::now().timestamp_millis();
     let msg_id = uuid::Uuid::new_v4().to_string();
 
-    let self_id = get_self_id(&conn)?;
+    // Phase 1: Gather data and prepare (with lock)
+    let (self_id, _previews_enabled, encrypted_content, cached_preview, url_to_fetch) = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        let self_id = get_self_id(&conn)?;
+        let previews_enabled = is_link_previews_enabled(&conn);
+        let encrypted_content = encrypt_content(&conn, &input.content, &chat_id, &self_id)?;
 
-    // Encrypt the message content before storing
-    let encrypted_content = encrypt_content(&conn, &input.content, chat_id, &self_id)?;
+        // Check for URL and cached preview
+        let (cached_preview, url_to_fetch) = if previews_enabled {
+            if let Some(url) = extract_first_url(&input.content) {
+                let cached = get_cached_preview(&conn, &url);
+                if cached.is_some() {
+                    (cached, None)
+                } else {
+                    (None, Some(url))
+                }
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
 
-    conn.execute(
-        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, reply_to_id, status, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'sent', ?7)",
-        (&msg_id, chat_id, &self_id, &encrypted_content, &input.message_type, &input.reply_to_id, now),
-    )
-    .map_err(|e| e.to_string())?;
+        (self_id, previews_enabled, encrypted_content, cached_preview, url_to_fetch)
+    }; // Lock released here
 
-    // Update chat's updated_at
-    conn.execute(
-        "UPDATE chats SET updated_at = ?1 WHERE id = ?2",
-        (now, chat_id),
-    )
-    .map_err(|e| e.to_string())?;
+    // Phase 2: Fetch URL preview if needed (async, no lock)
+    let url_preview = if let Some(url) = &url_to_fetch {
+        match crate::commands::url_preview::fetch_url_preview(url).await {
+            Ok(preview) => Some(preview),
+            Err(e) => {
+                tracing::warn!("Failed to fetch URL preview for {}: {}", url, e);
+                None
+            }
+        }
+    } else {
+        cached_preview
+    };
 
-    // Get sender info
-    let sender = conn
-        .query_row(
-            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE is_self = 1",
+    // Phase 3: Store message and cache preview (with lock)
+    let sender = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+        // Cache the preview if we fetched it
+        if let (Some(ref preview), Some(_)) = (&url_preview, &url_to_fetch) {
+            let _ = crate::commands::url_preview::cache_preview(&conn, preview);
+        }
+
+        let preview_url = url_preview.as_ref().map(|p| p.url.clone());
+
+        conn.execute(
+            "INSERT INTO messages (id, chat_id, sender_id, content, message_type, reply_to_id, preview_url, status, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'sent', ?8)",
+            (&msg_id, &chat_id, &self_id, &encrypted_content, &input.message_type, &input.reply_to_id, &preview_url, now),
+        )
+        .map_err(|e| e.to_string())?;
+
+        // Update chat's updated_at
+        conn.execute(
+            "UPDATE chats SET updated_at = ?1 WHERE id = ?2",
+            (now, &chat_id),
+        )
+        .map_err(|e| e.to_string())?;
+
+        // Get sender info
+        conn.query_row(
+            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled FROM users WHERE is_self = 1",
             [],
             |row| {
                 Ok(User {
@@ -182,20 +248,23 @@ pub fn send_message(db: State<'_, Database>, input: SendMessageInput) -> Result<
                     about: row.get(5)?,
                     last_seen: row.get(6)?,
                     is_online: row.get::<_, i32>(7)? == 1,
+                    link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
                 })
             },
         )
-        .ok();
+        .ok()
+    }; // Lock released here
 
     Ok(Message {
         id: msg_id,
-        chat_id: input.chat_id,
+        chat_id,
         sender_id: self_id,
         sender,
         content: Some(input.content),
         message_type: input.message_type,
         media_url: None,
         reply_to_id: input.reply_to_id,
+        url_preview,
         status: "sent".to_string(),
         created_at: now,
         edited_at: None,
@@ -281,7 +350,7 @@ pub fn search_messages(db: State<'_, Database>, input: SearchMessagesInput) -> R
     let mut stmt = conn
         .prepare(
             "SELECT m.id, m.chat_id, m.sender_id, m.content, m.message_type, m.media_url,
-                    m.reply_to_id, m.status, m.created_at, m.edited_at,
+                    m.reply_to_id, m.status, m.created_at, m.edited_at, m.preview_url,
                     u.id, u.name, u.display_name, u.phone, u.avatar_url, u.about, u.last_seen, u.is_online
              FROM messages m
              LEFT JOIN users u ON m.sender_id = u.id
@@ -291,42 +360,48 @@ pub fn search_messages(db: State<'_, Database>, input: SearchMessagesInput) -> R
         )
         .map_err(|e| e.to_string())?;
 
-    let messages: Vec<Message> = stmt
+    let messages: Vec<(Message, Option<String>)> = stmt
         .query_map([&search_pattern], |row| {
-            Ok(Message {
-                id: row.get(0)?,
-                chat_id: row.get(1)?,
-                sender_id: row.get(2)?,
-                sender: Some(User {
-                    id: row.get(10)?,
-                    name: row.get(11)?,
-                    display_name: row.get(12)?,
-                    phone: row.get(13)?,
-                    avatar_url: row.get(14)?,
-                    about: row.get(15)?,
-                    last_seen: row.get(16)?,
-                    is_online: row.get::<_, i32>(17)? == 1,
-                }),
-                content: row.get(3)?,
-                message_type: row.get(4)?,
-                media_url: row.get(5)?,
-                reply_to_id: row.get(6)?,
-                status: row.get(7)?,
-                created_at: row.get(8)?,
-                edited_at: row.get(9)?,
-            })
+            Ok((
+                Message {
+                    id: row.get(0)?,
+                    chat_id: row.get(1)?,
+                    sender_id: row.get(2)?,
+                    sender: Some(User {
+                        id: row.get(11)?,
+                        name: row.get(12)?,
+                        display_name: row.get(13)?,
+                        phone: row.get(14)?,
+                        avatar_url: row.get(15)?,
+                        about: row.get(16)?,
+                        last_seen: row.get(17)?,
+                        is_online: row.get::<_, i32>(18)? == 1,
+                        link_previews_enabled: true,
+                    }),
+                    content: row.get(3)?,
+                    message_type: row.get(4)?,
+                    media_url: row.get(5)?,
+                    reply_to_id: row.get(6)?,
+                    url_preview: None,
+                    status: row.get(7)?,
+                    created_at: row.get(8)?,
+                    edited_at: row.get(9)?,
+                },
+                row.get::<_, Option<String>>(10)?,
+            ))
         })
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();
 
-    // Decrypt messages for display
+    // Decrypt messages and load URL previews
     let decrypted_messages: Vec<Message> = messages
         .into_iter()
-        .map(|mut msg| {
+        .map(|(mut msg, preview_url)| {
             if let Some(ref content) = msg.content {
                 msg.content = Some(decrypt_content(&conn, content, &msg.chat_id, &self_id));
             }
+            msg.url_preview = load_url_preview(&conn, preview_url);
             msg
         })
         .collect();
@@ -345,6 +420,7 @@ pub fn receive_message(
     content: String,
     timestamp: i64,
     reply_to_id: Option<String>,
+    url_preview: Option<UrlPreview>,
 ) -> Result<Message, String> {
     // Validate input
     validate_user_id(&sender_id)?;
@@ -418,12 +494,18 @@ pub fn receive_message(
         .map_err(|e| e.to_string())?;
     }
 
+    // Cache URL preview if provided
+    let preview_url = url_preview.as_ref().map(|p| {
+        let _ = crate::commands::url_preview::cache_preview(&conn, p);
+        p.url.clone()
+    });
+
     // The content might be encrypted (prefixed with "enc:") from the sender
     // Store as-is in the database (preserving encryption)
     conn.execute(
-        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, reply_to_id, status, created_at)
-         VALUES (?1, ?2, ?3, ?4, 'text', ?5, 'received', ?6)",
-        (&id, &chat_id, &sender_id, &content, &reply_to_id, timestamp),
+        "INSERT INTO messages (id, chat_id, sender_id, content, message_type, reply_to_id, preview_url, status, created_at)
+         VALUES (?1, ?2, ?3, ?4, 'text', ?5, ?6, 'received', ?7)",
+        (&id, &chat_id, &sender_id, &content, &reply_to_id, &preview_url, timestamp),
     )
     .map_err(|e| e.to_string())?;
 
@@ -449,6 +531,7 @@ pub fn receive_message(
                     about: row.get(5)?,
                     last_seen: row.get(6)?,
                     is_online: row.get::<_, i32>(7)? == 1,
+                    link_previews_enabled: true,
                 })
             },
         )
@@ -475,6 +558,7 @@ pub fn receive_message(
         message_type: "text".to_string(),
         media_url: None,
         reply_to_id,
+        url_preview,
         status: "received".to_string(),
         created_at: timestamp,
         edited_at: None,

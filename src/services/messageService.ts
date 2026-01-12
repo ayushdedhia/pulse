@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Message } from "../types";
+import type { Message, UrlPreview } from "../types";
 
 export const messageService = {
   getMessages: (
@@ -44,7 +44,8 @@ export const messageService = {
     senderName: string | null,
     content: string,
     timestamp: number,
-    replyToId?: string
+    replyToId?: string,
+    urlPreview?: UrlPreview
   ): Promise<Message> => {
     return invoke<Message>("receive_message", {
       id,
@@ -54,6 +55,7 @@ export const messageService = {
       content,
       timestamp,
       replyToId,
+      urlPreview,
     });
   },
 };

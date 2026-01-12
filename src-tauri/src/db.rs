@@ -73,6 +73,16 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
             updated_at INTEGER NOT NULL
         );
 
+        -- URL previews cache table
+        CREATE TABLE IF NOT EXISTS url_previews (
+            url TEXT PRIMARY KEY,
+            title TEXT,
+            description TEXT,
+            image_url TEXT,
+            site_name TEXT,
+            fetched_at INTEGER NOT NULL
+        );
+
         -- Create indexes for better performance
         CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
         CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
@@ -93,6 +103,37 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
 
     if !has_display_name {
         conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT", [])?;
+    }
+
+    // Migration: Add link_previews_enabled column to users table
+    let has_link_previews: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'link_previews_enabled'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_link_previews {
+        conn.execute(
+            "ALTER TABLE users ADD COLUMN link_previews_enabled INTEGER DEFAULT 1",
+            [],
+        )?;
+    }
+
+    // Migration: Add preview_url column to messages table
+    let has_preview_url: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'preview_url'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_preview_url {
+        conn.execute("ALTER TABLE messages ADD COLUMN preview_url TEXT", [])?;
     }
 
     // Create current user if not exists

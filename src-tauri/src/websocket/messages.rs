@@ -1,5 +1,19 @@
 use serde::{Deserialize, Serialize};
 
+/// URL preview data for WebSocket messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WsUrlPreview {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site_name: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum WsMessage {
@@ -14,6 +28,8 @@ pub enum WsMessage {
         timestamp: i64,
         #[serde(skip_serializing_if = "Option::is_none")]
         reply_to_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        url_preview: Option<WsUrlPreview>,
     },
     #[serde(rename = "typing")]
     Typing {
@@ -91,6 +107,7 @@ mod tests {
             content: "Hello!".to_string(),
             timestamp: 1234567890,
             reply_to_id: None,
+            url_preview: None,
         };
 
         let json = serde_json::to_string(&msg).unwrap();

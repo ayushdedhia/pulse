@@ -1,3 +1,4 @@
+import { open } from "@tauri-apps/plugin-shell";
 import { format } from "date-fns";
 import { ChevronDown, Reply } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -5,6 +6,39 @@ import { useEffect, useRef, useState } from "react";
 import { getUserDisplayName, type Message } from "../../types";
 import { cn } from "../../utils/cn";
 import { MessageStatus } from "./MessageStatus";
+import { UrlPreviewCard } from "./UrlPreviewCard";
+
+// URL regex pattern for matching links
+const URL_REGEX = /(https?:\/\/[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+)/g;
+
+// Render text with clickable links
+function renderMessageContent(content: string, isOwn: boolean) {
+  const parts = content.split(URL_REGEX);
+
+  return parts.map((part, index) => {
+    if (URL_REGEX.test(part)) {
+      // Reset regex lastIndex after test
+      URL_REGEX.lastIndex = 0;
+      return (
+        <a
+          key={index}
+          href={part}
+          onClick={(e) => {
+            e.preventDefault();
+            open(part);
+          }}
+          className={cn(
+            "underline hover:opacity-80 cursor-pointer",
+            isOwn ? "text-[rgba(255,255,255,0.95)]" : "text-[#53BDEB]"
+          )}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
 
 interface MessageBubbleProps {
   message: Message;
@@ -163,6 +197,11 @@ export function MessageBubble({
             </div>
           )}
 
+          {/* URL Preview card */}
+          {message.url_preview && (
+            <UrlPreviewCard preview={message.url_preview} isOwn={isOwn} />
+          )}
+
           {/* Message content */}
           <div
             className={cn(
@@ -173,7 +212,7 @@ export function MessageBubble({
           >
             <div className="flex flex-wrap items-end">
               <p className="text-[14.2px] text-[var(--text-primary)] whitespace-pre-wrap break-words leading-[19px]">
-                {message.content}
+                {message.content ? renderMessageContent(message.content, isOwn) : null}
               </p>
 
               {/* Time and status - floating style like WhatsApp */}

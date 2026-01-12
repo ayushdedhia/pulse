@@ -12,4 +12,11 @@ pub struct User {
     pub about: Option<String>,
     pub last_seen: Option<i64>,
     pub is_online: bool,
+    /// Whether to fetch and show link previews (default: true)
+    #[serde(default = "default_link_previews")]
+    pub link_previews_enabled: bool,
+}
+
+fn default_link_previews() -> bool {
+    true
 }

@@ -96,6 +96,8 @@ pub fn run() {
             commands::user::save_contact,
             commands::user::upload_avatar,
             commands::user::save_peer_avatar,
+            // URL preview commands
+            commands::url_preview::fetch_preview,
             // WebSocket commands
             commands::websocket::broadcast_message,
             commands::websocket::get_server_url,

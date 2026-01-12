@@ -16,7 +16,7 @@ pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.query_row(
-        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled FROM users WHERE id = ?1",
         [&user_id],
         |row| {
             Ok(User {
@@ -28,6 +28,7 @@ pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String
                 about: row.get(5)?,
                 last_seen: row.get(6)?,
                 is_online: row.get::<_, i32>(7)? == 1,
+                link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
             })
         },
     )
@@ -39,7 +40,7 @@ pub fn get_current_user(db: State<'_, Database>) -> Result<User, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.query_row(
-        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE is_self = 1",
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled FROM users WHERE is_self = 1",
         [],
         |row| {
             Ok(User {
@@ -51,6 +52,7 @@ pub fn get_current_user(db: State<'_, Database>) -> Result<User, String> {
                 about: row.get(5)?,
                 last_seen: row.get(6)?,
                 is_online: row.get::<_, i32>(7)? == 1,
+                link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
             })
         },
     )
@@ -68,12 +70,13 @@ pub fn update_user(db: State<'_, Database>, user: User) -> Result<bool, String> 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     conn.execute(
-        "UPDATE users SET name = ?1, phone = ?2, avatar_url = ?3, about = ?4 WHERE id = ?5",
+        "UPDATE users SET name = ?1, phone = ?2, avatar_url = ?3, about = ?4, link_previews_enabled = ?5 WHERE id = ?6",
         (
             &user.name,
             &user.phone,
             &user.avatar_url,
             &user.about,
+            if user.link_previews_enabled { 1 } else { 0 },
             &user.id,
         ),
     )
@@ -88,7 +91,7 @@ pub fn get_contacts(db: State<'_, Database>) -> Result<Vec<User>, String> {
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online
+            "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled
              FROM users
              WHERE is_self = 0
              ORDER BY COALESCE(display_name, name)",
@@ -106,6 +109,7 @@ pub fn get_contacts(db: State<'_, Database>) -> Result<Vec<User>, String> {
                 about: row.get(5)?,
                 last_seen: row.get(6)?,
                 is_online: row.get::<_, i32>(7)? == 1,
+                link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
             })
         })
         .map_err(|e| e.to_string())?
@@ -155,6 +159,7 @@ pub fn add_contact(
         about: Some("Hey there! I am using Pulse".to_string()),
         last_seen: Some(now),
         is_online: false,
+        link_previews_enabled: true,
     })
 }
 
@@ -189,7 +194,7 @@ pub fn save_contact(
 
     // Return updated user
     conn.query_row(
-        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online FROM users WHERE id = ?1",
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled FROM users WHERE id = ?1",
         [&user_id],
         |row| {
             Ok(User {
@@ -201,6 +206,7 @@ pub fn save_contact(
                 about: row.get(5)?,
                 last_seen: row.get(6)?,
                 is_online: row.get::<_, i32>(7)? == 1,
+                link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
             })
         },
     )
