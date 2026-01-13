@@ -1,9 +1,40 @@
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, OptionalExtension, Result};
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
 pub struct Database(pub Mutex<Connection>);
+
+#[derive(Debug, Serialize, Deserialize)]
+struct StoredIdentity {
+    user_id: String,
+}
+
+fn load_stored_identity(path: &Path) -> Option<String> {
+    if !path.exists() {
+        return None;
+    }
+
+    let contents = fs::read_to_string(path).ok()?;
+    let identity: StoredIdentity = serde_json::from_str(&contents).ok()?;
+    let trimmed = identity.user_id.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+fn save_stored_identity(path: &Path, user_id: &str) {
+    let identity = StoredIdentity {
+        user_id: user_id.to_string(),
+    };
+    let contents =
+        serde_json::to_string_pretty(&identity).expect("Failed to serialize identity");
+    fs::write(path, contents).expect("Failed to write identity file");
+}
 
 pub fn init_database(app: &AppHandle) -> Result<()> {
     let app_dir = app
@@ -13,6 +44,7 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
     fs::create_dir_all(&app_dir).expect("Failed to create app data directory");
 
     let db_path = app_dir.join("pulse.db");
+    let identity_path = app_dir.join("identity.json");
     let conn = Connection::open(db_path)?;
 
     // Create tables
@@ -136,15 +168,25 @@ pub fn init_database(app: &AppHandle) -> Result<()> {
         conn.execute("ALTER TABLE messages ADD COLUMN preview_url TEXT", [])?;
     }
 
-    // Create current user if not exists
-    let user_count: i32 =
-        conn.query_row("SELECT COUNT(*) FROM users WHERE is_self = 1", [], |row| {
-            row.get(0)
-        })?;
+    // Create or reuse current user with a stable identity ID
+    let existing_self_id: Option<String> = conn
+        .query_row(
+            "SELECT id FROM users WHERE is_self = 1 LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
 
-    if user_count == 0 {
-        // Generate a unique user ID for this instance
-        let user_id = uuid::Uuid::new_v4().to_string();
+    if let Some(self_id) = existing_self_id {
+        if load_stored_identity(&identity_path).as_deref() != Some(self_id.as_str()) {
+            save_stored_identity(&identity_path, &self_id);
+        }
+    } else {
+        let user_id = load_stored_identity(&identity_path).unwrap_or_else(|| {
+            let new_id = uuid::Uuid::new_v4().to_string();
+            save_stored_identity(&identity_path, &new_id);
+            new_id
+        });
         // Create a default name using part of the UUID for uniqueness
         let default_name = format!("User {}", &user_id[..8]);
         conn.execute(

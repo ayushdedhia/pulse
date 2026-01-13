@@ -1,9 +1,11 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+
+import { useCSSVariable } from "../../hooks/useCSSVariable";
 
 export function Titlebar() {
-  const titlebarRef = useRef<HTMLDivElement>(null);
+  const titlebarRef = useCSSVariable<HTMLDivElement>({ variable: "titlebar-height" });
 
   useEffect(() => {
     const titlebar = titlebarRef.current;

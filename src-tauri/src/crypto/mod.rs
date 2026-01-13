@@ -1,5 +1,5 @@
 mod manager;
-mod storage;
+pub(crate) mod storage;
 mod types;
 
 pub use manager::CryptoManager;

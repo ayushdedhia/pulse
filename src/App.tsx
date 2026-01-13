@@ -1,20 +1,28 @@
 import { useEffect, useState } from "react";
 
 import { AppLayout } from "./components/layout/AppLayout";
+import { OnboardingModal } from "./components/modals/OnboardingModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
 import { WebSocketProvider } from "./context/WebSocketContext";
 import { useCrypto } from "./hooks/useCrypto";
 import { updaterService, type UpdateInfo } from "./services";
 import { useChatStore } from "./store/chatStore";
+import { useUserStore } from "./store/userStore";
 import { useUIStore } from "./store/uiStore";
 
 const SKIPPED_VERSION_KEY = "pulse_skipped_version";
 
+// Test mode: ?test=onboarding forces the modal to show for e2e testing
+const isTestMode = new URLSearchParams(window.location.search).get("test") === "onboarding";
+
 function App() {
   const theme = useUIStore((state) => state.theme);
   const { isInitialized, isNewIdentity } = useCrypto();
+  const currentUser = useUserStore((state) => state.currentUser);
+  const chats = useChatStore((state) => state.chats);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
 
   useEffect(() => {
     useChatStore.getState().loadChats();
@@ -58,9 +66,18 @@ function App() {
     localStorage.setItem(SKIPPED_VERSION_KEY, version);
   };
 
+  // Only show onboarding if no chats exist (prevents error when keys regenerated but DB has history)
+  // Test mode (?test=onboarding) forces the modal to show for e2e testing
+  const showOnboarding =
+    isTestMode ||
+    (isInitialized && isNewIdentity && !onboardingComplete && !!currentUser && chats.length === 0);
+
   return (
     <WebSocketProvider>
       <AppLayout />
+      {showOnboarding && (
+        <OnboardingModal onComplete={() => setOnboardingComplete(true)} />
+      )}
       {showUpdateModal && updateInfo && (
         <UpdateModal
           updateInfo={updateInfo}

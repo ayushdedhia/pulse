@@ -14,6 +14,89 @@ export const test = base.extend<{
 export { expect } from "@playwright/test";
 
 // Page object helpers
+export class OnboardingPage {
+  constructor(private page: Page) {}
+
+  async isVisible() {
+    return this.page
+      .locator('text="Enter your phone number"')
+      .isVisible()
+      .catch(() => false);
+  }
+
+  async waitForLoad() {
+    await this.page.waitForSelector('text="Enter your phone number"', {
+      timeout: 10000,
+    });
+  }
+
+  get countrySelector() {
+    // Button with country code badge (e.g., "IN +91") or "Select" text
+    return this.page.locator('button:has-text("+")').first();
+  }
+
+  get countryDropdown() {
+    return this.page.locator('input[placeholder="Search country or code..."]');
+  }
+
+  get phoneInput() {
+    return this.page.locator('input[type="tel"]');
+  }
+
+  get continueButton() {
+    return this.page.locator('button:has-text("Continue with this number")');
+  }
+
+  get savingButton() {
+    return this.page.locator('button:has-text("Saving...")');
+  }
+
+  get errorMessage() {
+    return this.page.locator(".text-red-500");
+  }
+
+  get digitCounter() {
+    return this.page.locator('p.tabular-nums');
+  }
+
+  async openCountrySelector() {
+    await this.countrySelector.click();
+  }
+
+  async selectCountry(name: string) {
+    await this.openCountrySelector();
+    await this.countryDropdown.fill(name);
+    await this.page.locator(`button:has-text("${name}")`).first().click();
+  }
+
+  async searchCountry(query: string) {
+    await this.openCountrySelector();
+    await this.countryDropdown.fill(query);
+  }
+
+  async enterPhone(phone: string) {
+    await this.phoneInput.fill(phone);
+  }
+
+  async submit() {
+    await this.continueButton.click();
+  }
+
+  async getErrorText() {
+    return this.errorMessage.textContent();
+  }
+
+  async isButtonDisabled() {
+    return this.continueButton.isDisabled();
+  }
+
+  async getSelectedCountryDialCode() {
+    const text = await this.countrySelector.textContent();
+    const match = text?.match(/\+\d+/);
+    return match ? match[0] : null;
+  }
+}
+
 export class ChatListPage {
   constructor(private page: Page) {}
 

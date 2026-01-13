@@ -91,6 +91,7 @@ pub fn run() {
             commands::user::get_user,
             commands::user::get_current_user,
             commands::user::update_user,
+            commands::user::set_phone_number,
             commands::user::get_contacts,
             commands::user::add_contact,
             commands::user::save_contact,

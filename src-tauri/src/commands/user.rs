@@ -1,12 +1,35 @@
 use crate::db::Database;
+use crate::crypto::storage;
 use crate::models::User;
 use crate::utils::validation::{
-    validate_about, validate_phone, validate_url, validate_user_id, validate_user_name,
+    validate_about, validate_phone, validate_phone_id, validate_url, validate_user_id,
+    validate_user_name,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use rusqlite::OptionalExtension;
+use serde::Serialize;
 use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Manager, State};
+
+#[derive(Serialize)]
+struct StoredIdentity {
+    user_id: String,
+}
+
+fn write_identity_file(app: &AppHandle, user_id: &str) -> Result<(), String> {
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let identity_path = app_dir.join("identity.json");
+    let identity = StoredIdentity {
+        user_id: user_id.to_string(),
+    };
+    let contents = serde_json::to_string_pretty(&identity).map_err(|e| e.to_string())?;
+    fs::write(identity_path, contents).map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 #[tauri::command]
 pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String> {
@@ -83,6 +106,159 @@ pub fn update_user(db: State<'_, Database>, user: User) -> Result<bool, String> 
     .map_err(|e| e.to_string())?;
 
     Ok(true)
+}
+
+#[tauri::command]
+pub fn set_phone_number(
+    app: AppHandle,
+    db: State<'_, Database>,
+    phone: String,
+) -> Result<User, String> {
+    // Validate and normalize phone number
+    let trimmed_id = validate_phone_id(&phone)?;
+
+    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
+    let current_id: String = conn
+        .query_row("SELECT id FROM users WHERE is_self = 1", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    if trimmed_id == current_id {
+        return conn
+            .query_row(
+                "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled FROM users WHERE id = ?1",
+                [&current_id],
+                |row| {
+                    Ok(User {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        display_name: row.get(2)?,
+                        phone: row.get(3)?,
+                        avatar_url: row.get(4)?,
+                        about: row.get(5)?,
+                        last_seen: row.get(6)?,
+                        is_online: row.get::<_, i32>(7)? == 1,
+                        link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
+                    })
+                },
+            )
+            .map_err(|e| e.to_string());
+    }
+
+    let id_exists: bool = conn
+        .query_row("SELECT 1 FROM users WHERE id = ?1", [&trimmed_id], |_| Ok(true))
+        .unwrap_or(false);
+    if id_exists {
+        return Err("Phone number already registered".to_string());
+    }
+
+    let public_key_exists: bool = conn
+        .query_row(
+            "SELECT 1 FROM public_keys WHERE user_id = ?1",
+            [&trimmed_id],
+            |_| Ok(true),
+        )
+        .unwrap_or(false);
+    if public_key_exists {
+        return Err("Phone number already registered".to_string());
+    }
+
+    let has_participation: bool = conn
+        .query_row(
+            "SELECT 1 FROM chat_participants WHERE user_id = ?1 LIMIT 1",
+            [&current_id],
+            |_| Ok(true),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+
+    let has_messages: bool = conn
+        .query_row(
+            "SELECT 1 FROM messages WHERE sender_id = ?1 LIMIT 1",
+            [&current_id],
+            |_| Ok(true),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+
+    if has_participation || has_messages {
+        return Err("Cannot change ID after chats exist".to_string());
+    }
+
+    let old_private_key = storage::load_private_key(&current_id)?;
+    if let Some(ref key_bytes) = old_private_key {
+        storage::store_private_key(&trimmed_id, key_bytes)?;
+    }
+
+    // Disable FK checks for the transaction (updating PK with FK references)
+    conn.execute("PRAGMA foreign_keys = OFF", [])
+        .map_err(|e| e.to_string())?;
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let update_result = (|| -> Result<(), String> {
+        tx.execute(
+            "UPDATE users SET id = ?1 WHERE id = ?2",
+            (&trimmed_id, &current_id),
+        )
+        .map_err(|e| e.to_string())?;
+
+        tx.execute(
+            "UPDATE chat_participants SET user_id = ?1 WHERE user_id = ?2",
+            (&trimmed_id, &current_id),
+        )
+        .map_err(|e| e.to_string())?;
+
+        tx.execute(
+            "UPDATE messages SET sender_id = ?1 WHERE sender_id = ?2",
+            (&trimmed_id, &current_id),
+        )
+        .map_err(|e| e.to_string())?;
+
+        tx.execute(
+            "UPDATE public_keys SET user_id = ?1 WHERE user_id = ?2",
+            (&trimmed_id, &current_id),
+        )
+        .map_err(|e| e.to_string())?;
+
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+
+    // Re-enable FK checks
+    let _ = conn.execute("PRAGMA foreign_keys = ON", []);
+
+    if let Err(err) = update_result {
+        if old_private_key.is_some() {
+            let _ = storage::delete_private_key(&trimmed_id);
+        }
+        return Err(err);
+    }
+
+    write_identity_file(&app, &trimmed_id)?;
+
+    if old_private_key.is_some() {
+        let _ = storage::delete_private_key(&current_id);
+    }
+
+    conn.query_row(
+        "SELECT id, name, display_name, phone, avatar_url, about, last_seen, is_online, link_previews_enabled FROM users WHERE id = ?1",
+        [&trimmed_id],
+        |row| {
+            Ok(User {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                display_name: row.get(2)?,
+                phone: row.get(3)?,
+                avatar_url: row.get(4)?,
+                about: row.get(5)?,
+                last_seen: row.get(6)?,
+                is_online: row.get::<_, i32>(7)? == 1,
+                link_previews_enabled: row.get::<_, i32>(8).unwrap_or(1) == 1,
+            })
+        },
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

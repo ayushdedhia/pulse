@@ -6,6 +6,9 @@
 @tailwind utilities;
 
 :root {
+  /* Layout */
+  --titlebar-height: 40px; /* Fallback - dynamically set by Titlebar.tsx */
+
   /* Dark Mode (Default) - Exact WhatsApp colors */
   --bg-primary: #111B21;
   --bg-secondary: #202C33;

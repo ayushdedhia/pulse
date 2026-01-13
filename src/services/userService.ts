@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+
 import type { User } from "../types";
 
 export const userService = {
@@ -12,6 +13,10 @@ export const userService = {
 
   updateUser: (user: User): Promise<boolean> => {
     return invoke<boolean>("update_user", { user });
+  },
+
+  setPhoneNumber: (phone: string): Promise<User> => {
+    return invoke<User>("set_phone_number", { phone });
   },
 
   getContacts: (): Promise<User[]> => {
