@@ -71,3 +71,80 @@ export interface NetworkStatus {
   port: number;
   connected_peers: PeerInfo[];
 }
+
+// === Video Call Types ===
+
+export type CallStatus = "idle" | "outgoing" | "incoming" | "connecting" | "connected";
+
+export interface CallInviteMessage {
+  type: "call_invite";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  kind: "video" | "audio";
+  from_user_name?: string;
+  from_user_avatar?: string;
+}
+
+export interface CallRingingMessage {
+  type: "call_ringing";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+}
+
+export interface CallAcceptMessage {
+  type: "call_accept";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+}
+
+export interface CallRejectMessage {
+  type: "call_reject";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  reason: string;
+}
+
+export interface CallHangupMessage {
+  type: "call_hangup";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+}
+
+export interface RtcOfferMessage {
+  type: "rtc_offer";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  sdp: string;
+}
+
+export interface RtcAnswerMessage {
+  type: "rtc_answer";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  sdp: string;
+}
+
+export interface RtcIceCandidateMessage {
+  type: "rtc_ice_candidate";
+  call_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  candidate: string;
+}
+
+export type CallMessage =
+  | CallInviteMessage
+  | CallRingingMessage
+  | CallAcceptMessage
+  | CallRejectMessage
+  | CallHangupMessage
+  | RtcOfferMessage
+  | RtcAnswerMessage
+  | RtcIceCandidateMessage;

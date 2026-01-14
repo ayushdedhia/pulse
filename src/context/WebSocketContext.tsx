@@ -1,10 +1,11 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-import { messageService, userService, websocketService } from "../services";
+import { callService, messageService, userService, websocketService } from "../services";
 import { useChatStore } from "../store/chatStore";
+import { useCallStore } from "../store/callStore";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
-import type { Message, UrlPreview } from "../types";
+import type { CallMessage, Message, UrlPreview } from "../types";
 
 // Get store functions without subscribing to state changes
 const getMessageActions = () => useMessageStore.getState();
@@ -144,11 +145,15 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           if (data.success) {
             console.log("Connected to Pulse server");
             setIsConnected(true);
-            // Connect the Tauri backend client and broadcast presence
+            // Disconnect any existing backend connection, then connect with current ID
             if (currentUser) {
-              websocketService.connect(currentUser.id)
-                .then(() => websocketService.broadcastPresence(currentUser.id))
-                .catch((err: Error) => console.error("Failed to initialize backend WebSocket:", err));
+              websocketService.disconnect()
+                .catch(() => {}) // Ignore disconnect errors (might not be connected)
+                .finally(() => {
+                  websocketService.connect(currentUser.id)
+                    .then(() => websocketService.broadcastPresence(currentUser.id))
+                    .catch((err: Error) => console.error("Failed to initialize backend WebSocket:", err));
+                });
             }
           } else {
             console.warn("Server authentication failed:", data.message);
@@ -196,6 +201,56 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             })();
           }
           break;
+
+        // === Video Call Messages ===
+        case "call_invite":
+          if (data.call_id && data.from_user_id && data.from_user_id !== currentUser?.id) {
+            const callerName = (data.from_user_name as string) || "Unknown";
+            const callerAvatar = data.from_user_avatar as string | undefined;
+            callService.handleCallInvite(
+              data.call_id as string,
+              data.from_user_id as string,
+              callerName,
+              callerAvatar
+            );
+          }
+          break;
+
+        case "call_accept":
+          if (data.call_id === useCallStore.getState().callId) {
+            callService.handleCallAccepted();
+          }
+          break;
+
+        case "call_reject":
+          if (data.call_id === useCallStore.getState().callId) {
+            callService.handleCallRejected(data.reason as string);
+          }
+          break;
+
+        case "call_hangup":
+          if (data.call_id === useCallStore.getState().callId) {
+            callService.handleRemoteHangup();
+          }
+          break;
+
+        case "rtc_offer":
+          if (data.call_id === useCallStore.getState().callId) {
+            callService.handleRtcOffer(data.sdp as string);
+          }
+          break;
+
+        case "rtc_answer":
+          if (data.call_id === useCallStore.getState().callId) {
+            callService.handleRtcAnswer(data.sdp as string);
+          }
+          break;
+
+        case "rtc_ice_candidate":
+          if (data.call_id === useCallStore.getState().callId) {
+            callService.handleIceCandidate(data.candidate as string);
+          }
+          break;
       }
     },
     [currentUser]
@@ -215,6 +270,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         console.log("WebSocket connected, authenticating...");
         // Send connect message with user ID
         ws.send(JSON.stringify({ type: "connect", user_id: userId }));
+
+        // Initialize call service with send function
+        callService.setSendMessage((msg: CallMessage) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(msg));
+          }
+        });
       };
 
       ws.onmessage = (event) => {
@@ -230,10 +292,12 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         console.log("WebSocket disconnected");
         setIsConnected(false);
 
-        // Reconnect after delay
-        reconnectTimeoutRef.current = window.setTimeout(() => {
-          connect();
-        }, 3000);
+        // Only reconnect if this is still the active connection (not replaced by a new one)
+        if (wsRef.current === ws) {
+          reconnectTimeoutRef.current = window.setTimeout(() => {
+            connect();
+          }, 3000);
+        }
       };
 
       ws.onerror = (err) => {
@@ -267,6 +331,17 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    // Close existing connection when userId changes (e.g., after phone onboarding)
+    if (wsRef.current) {
+      const oldWs = wsRef.current;
+      wsRef.current = null; // Clear ref BEFORE closing so onclose doesn't reconnect
+      oldWs.close();
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = undefined;
+    }
+
     if (userId) {
       connect();
     }
@@ -275,7 +350,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      wsRef.current?.close();
+      if (wsRef.current) {
+        const oldWs = wsRef.current;
+        wsRef.current = null;
+        oldWs.close();
+      }
     };
   }, [userId, connect]);
 

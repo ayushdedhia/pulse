@@ -73,6 +73,63 @@ pub enum WsMessage {
         about: Option<String>,
         avatar_data: Option<String>,
     },
+
+    // === Video Call Control Messages ===
+    #[serde(rename = "call_invite")]
+    CallInvite {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+        kind: String, // "video" or "audio"
+    },
+    #[serde(rename = "call_ringing")]
+    CallRinging {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+    },
+    #[serde(rename = "call_accept")]
+    CallAccept {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+    },
+    #[serde(rename = "call_reject")]
+    CallReject {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+        reason: String,
+    },
+    #[serde(rename = "call_hangup")]
+    CallHangup {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+    },
+
+    // === WebRTC Signaling Messages ===
+    #[serde(rename = "rtc_offer")]
+    RtcOffer {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+        sdp: String,
+    },
+    #[serde(rename = "rtc_answer")]
+    RtcAnswer {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+        sdp: String,
+    },
+    #[serde(rename = "rtc_ice_candidate")]
+    RtcIceCandidate {
+        call_id: String,
+        from_user_id: String,
+        to_user_id: String,
+        candidate: String,
+    },
 }
 
 #[cfg(test)]

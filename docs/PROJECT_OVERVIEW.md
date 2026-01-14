@@ -33,7 +33,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] Message reply (WhatsApp-style hover dropdown menu)
 
 ### Core Features
-- [ ] User authentication (phone/email)
+- [x] Phone number onboarding (phone as unique Pulse ID)
 - [x] 1-on-1 messaging (UI ready, backend commands ready)
 - [x] Group chats (UI ready)
 - [x] Message encryption (E2E) - X25519 key exchange + AES-256-GCM
@@ -144,6 +144,20 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - **Dev scripts for local testing**
   - `scripts/dev-client.ps1` - Launch client with optional fresh DB (`-Fresh`) and multi-instance (`-Instance 2`)
   - `scripts/local-test.ps1` - Full setup: cleanup + server + 2 clients
+- **Phone number onboarding**
+  - OnboardingModal for first-time users to enter phone number
+  - Country selector with 240+ countries, searchable by name or dial code
+  - Real-time validation (min 7, max 15 digits including dial code)
+  - Phone number stored as unique Pulse ID
+  - Country code badges (Windows-friendly, no flag emojis)
+  - Test mode (`?test=onboarding`) for e2e testing
+  - 29 e2e tests covering onboarding flow
+- **Dynamic CSS variable hook**
+  - `useCSSVariable` hook for measuring element dimensions
+  - Automatically sets CSS variables on document root
+  - Used by Titlebar for dynamic `--titlebar-height`
+  - Supports height, width, or both dimensions
+  - Updates on window resize
 
 ## Next Steps
 
@@ -155,7 +169,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [ ] Add zeroize for keys in memory
 
 ### Features
-- [ ] **Auto-updater** (HIGH PRIORITY) - Tauri plugin for seamless updates via GitHub Releases
+- [x] **Auto-updater** - Tauri plugin for seamless updates via GitHub Releases
 - [ ] Voice message recording
 - [ ] File/image upload and preview
 - [x] Store encryption keys persistently

@@ -6,7 +6,7 @@ use crate::models::input::{
     UpdateMessageStatusInput, ValidateExt,
 };
 use crate::models::{Message, UrlPreview, User};
-use crate::utils::validation::validate_user_id;
+use crate::utils::validation::validate_phone_id;
 use crate::utils::{generate_deterministic_chat_id, get_self_id};
 use crate::websocket::{get_ws_client, WsMessage};
 use tauri::State;
@@ -422,8 +422,8 @@ pub fn receive_message(
     reply_to_id: Option<String>,
     url_preview: Option<UrlPreview>,
 ) -> Result<Message, String> {
-    // Validate input
-    validate_user_id(&sender_id)?;
+    // Validate and normalize sender ID (accepts phone numbers with + prefix)
+    let sender_id = validate_phone_id(&sender_id)?;
     // Note: content might be encrypted so we skip content validation here
     // The encryption layer handles its own size limits
 

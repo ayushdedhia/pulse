@@ -1,6 +1,7 @@
 import { MoreVertical, Phone, Search, Video } from "lucide-react";
 
 import { useWebSocketContext } from "../../context/WebSocketContext";
+import { useCallStore } from "../../store/callStore";
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
 import { getUserDisplayName } from "../../types";
@@ -11,9 +12,12 @@ export function ChatHeader() {
   const activeChat = useChatStore((state) => state.activeChat);
   const setShowContactInfo = useUIStore((state) => state.setShowContactInfo);
   const showContactInfo = useUIStore((state) => state.showContactInfo);
+  const callStatus = useCallStore((state) => state.callStatus);
   const { onlineUsers } = useWebSocketContext();
 
   if (!activeChat) return null;
+
+  const isInCall = callStatus !== "idle";
 
   const displayName = activeChat.chat_type === "group"
     ? activeChat.name
@@ -32,6 +36,21 @@ export function ChatHeader() {
     : isOnline
       ? "online"
       : formatLastSeen(activeChat.participant?.last_seen);
+
+  const showDeviceSelectionForOutgoing = useCallStore((state) => state.showDeviceSelectionForOutgoing);
+
+  const handleVideoCall = () => {
+    // Only allow calls for individual chats when not already in a call
+    if (activeChat.chat_type !== "individual" || !activeChat.participant || isInCall) {
+      return;
+    }
+    // Show device selection modal before starting the call
+    showDeviceSelectionForOutgoing(
+      activeChat.participant.id,
+      displayName || "Unknown",
+      avatarUrl
+    );
+  };
 
   return (
     <header className="flex items-center gap-4 px-4 h-[60px] bg-[var(--bg-secondary)] border-b border-[var(--border-light)] transition-theme">
@@ -63,8 +82,13 @@ export function ChatHeader() {
 
       {/* Action Buttons */}
       <div className="flex items-center gap-[2px]">
-        <HeaderButton icon={<Video size={22} strokeWidth={1.75} />} tooltip="Video call" />
-        <HeaderButton icon={<Phone size={20} strokeWidth={1.75} />} tooltip="Voice call" />
+        <HeaderButton
+          icon={<Video size={22} strokeWidth={1.75} />}
+          tooltip="Video call"
+          onClick={handleVideoCall}
+          disabled={isInCall || activeChat.chat_type === "group"}
+        />
+        <HeaderButton icon={<Phone size={20} strokeWidth={1.75} />} tooltip="Voice call" disabled />
         <HeaderButton icon={<Search size={20} strokeWidth={1.75} />} tooltip="Search" />
         <HeaderButton icon={<MoreVertical size={20} strokeWidth={1.75} />} tooltip="Menu" />
       </div>
@@ -76,19 +100,21 @@ interface HeaderButtonProps {
   icon: React.ReactNode;
   tooltip?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
-function HeaderButton({ icon, tooltip, onClick }: HeaderButtonProps) {
+function HeaderButton({ icon, tooltip, onClick, disabled }: HeaderButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="
+      disabled={disabled}
+      className={`
         w-10 h-10 flex items-center justify-center rounded-full
         text-[var(--text-secondary)]
-        hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]
         transition-all duration-200 active-press
         group relative
-      "
+        ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"}
+      `}
     >
       <span className="transition-transform duration-200 group-hover:scale-110">
         {icon}

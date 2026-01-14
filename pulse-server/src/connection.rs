@@ -188,6 +188,18 @@ fn handle_message(text: &str, sender_id: &str, state: &ServerState) {
             // Profile updates broadcast to all online users
             state.broadcast(text, Some(sender_id));
         }
+        // === Video Call Control - route directly to recipient (no queue, time-sensitive) ===
+        WsMessage::CallInvite { to_user_id, .. }
+        | WsMessage::CallRinging { to_user_id, .. }
+        | WsMessage::CallAccept { to_user_id, .. }
+        | WsMessage::CallReject { to_user_id, .. }
+        | WsMessage::CallHangup { to_user_id, .. }
+        | WsMessage::RtcOffer { to_user_id, .. }
+        | WsMessage::RtcAnswer { to_user_id, .. }
+        | WsMessage::RtcIceCandidate { to_user_id, .. } => {
+            // Call signaling is time-sensitive - send directly, don't queue
+            state.send_to_user(to_user_id, text);
+        }
         WsMessage::Connect { .. } => {
             // Already authenticated, ignore
         }

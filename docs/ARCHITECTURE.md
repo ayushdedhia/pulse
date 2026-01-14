@@ -36,22 +36,31 @@ src/
 │   │   └── ChatListItem.tsx    # Individual chat preview
 │   ├── common/
 │   │   └── Avatar.tsx          # User avatar with fallback
-│   └── modals/
-│       ├── NewChatModal.tsx    # Create new chat
-│       ├── ProfileModal.tsx    # User profile editor
-│       └── ContactInfoPanel.tsx # Contact details panel
-├── services/                   # API abstraction layer
+│   ├── modals/
+│   │   ├── NewChatModal.tsx    # Create new chat
+│   │   ├── ProfileModal.tsx    # User profile editor
+│   │   ├── OnboardingModal.tsx # Phone number onboarding for new users
+│   │   └── ContactInfoPanel.tsx # Contact details panel
+│   └── ui/
+│       └── CountrySelector.tsx # Country code picker with search
+├── services/                   # Tauri command wrappers
 │   ├── index.ts               # Re-exports all services
-│   ├── userService.ts         # User API calls
-│   ├── chatService.ts         # Chat API calls
-│   ├── messageService.ts      # Message API calls
-│   ├── websocketService.ts    # WebSocket API calls
-│   └── cryptoService.ts       # E2E encryption API calls
+│   ├── userService.ts         # User commands
+│   ├── chatService.ts         # Chat commands
+│   ├── messageService.ts      # Message commands
+│   ├── websocketService.ts    # WebSocket commands
+│   └── cryptoService.ts       # E2E encryption commands
 ├── store/                      # Zustand stores
 │   ├── chatStore.ts           # Chat list + active chat state
 │   ├── messageStore.ts        # Messages by chatId
 │   ├── userStore.ts           # Current user state
 │   └── uiStore.ts             # UI state (theme, modals)
+├── hooks/
+│   ├── useWebSocket.ts        # WebSocket connection hook
+│   ├── useCrypto.ts           # E2E encryption hook
+│   └── useCSSVariable.ts      # Dynamic CSS variable hook for element dimensions
+├── data/
+│   └── countries.ts           # Country data (240+ countries with dial codes)
 ├── utils/
 │   ├── formatTime.ts          # Time formatting utilities
 │   └── cn.ts                  # Tailwind class merging utility

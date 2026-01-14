@@ -30,10 +30,13 @@ src/
 │   │   └── ChatListItem.tsx    # Individual chat preview
 │   ├── common/
 │   │   └── Avatar.tsx          # User avatar with fallback
-│   └── modals/
-│       ├── NewChatModal.tsx    # Create new chat
-│       ├── ProfileModal.tsx    # User profile editor
-│       └── NetworkModal.tsx    # LAN network settings
+│   ├── modals/
+│   │   ├── NewChatModal.tsx    # Create new chat
+│   │   ├── ProfileModal.tsx    # User profile editor
+│   │   ├── OnboardingModal.tsx # Phone number onboarding for new users
+│   │   └── NetworkModal.tsx    # LAN network settings
+│   └── ui/
+│       └── CountrySelector.tsx # Country code picker with search
 ├── services/                   # API abstraction layer
 │   ├── index.ts               # Re-exports all services
 │   ├── userService.ts         # User API calls
@@ -51,7 +54,10 @@ src/
 │   └── cn.ts                  # Tailwind class merging utility (clsx + tailwind-merge)
 ├── hooks/
 │   ├── useWebSocket.ts        # WebSocket connection hook
-│   └── useCrypto.ts           # E2E encryption hook
+│   ├── useCrypto.ts           # E2E encryption hook
+│   └── useCSSVariable.ts      # Dynamic CSS variable hook for element dimensions
+├── data/
+│   └── countries.ts           # Country data (240+ countries with dial codes)
 ├── context/
 │   └── WebSocketContext.tsx   # WebSocket provider
 ├── types/
@@ -97,3 +103,23 @@ State is split by domain for better separation of concerns:
 ## Styling Conventions
 - **Tailwind classes**: Always write on a single line, never split across multiple lines.
 - **Conditional classes**: Use `cn()` utility for dynamic/conditional class merging.
+
+## Custom Hooks
+
+### useCSSVariable
+Dynamically set CSS variables based on element dimensions:
+```typescript
+// Track element height
+const ref = useCSSVariable({ variable: 'titlebar-height' });
+
+// Track width
+const ref = useCSSVariable({ variable: 'sidebar-width', dimension: 'width' });
+
+// Track both dimensions (sets --name-height and --name-width)
+const ref = useCSSVariable({ variable: 'card', dimension: 'both' });
+```
+
+## E2E Testing
+- Tests located in `e2e/` directory
+- Use `?test=onboarding` query param to force onboarding modal for testing
+- Page objects in `e2e/fixtures.ts` (OnboardingPage, ChatListPage, ChatPage)

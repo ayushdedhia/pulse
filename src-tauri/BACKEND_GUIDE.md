@@ -38,7 +38,8 @@ src-tauri/src/
 │   └── types.rs              # SerializableKeyPair, EncryptedMessage, IdentityInfo
 └── utils/                     # Shared helpers
     ├── mod.rs                # Re-exports
-    └── helpers.rs            # get_self_id(), generate_deterministic_chat_id()
+    ├── helpers.rs            # get_self_id(), generate_deterministic_chat_id()
+    └── validation.rs         # Input validation (phone numbers, etc.)
 ```
 
 ## Backend Module Organization
@@ -48,16 +49,16 @@ Commands are organized by domain in separate files:
 - `commands::message` - Message CRUD handlers
 - `commands::websocket` - WebSocket-related handlers
 
-Shared utilities extracted to `utils/helpers.rs`:
-- `get_self_id(conn)` - Get current user's ID from database
-- `generate_deterministic_chat_id(id1, id2)` - Create consistent chat IDs
+Shared utilities extracted to `utils/`:
+- `helpers.rs`: `get_self_id(conn)`, `generate_deterministic_chat_id(id1, id2)`
+- `validation.rs`: `validate_phone_number()` - E.164 format validation (7-15 digits)
 
 ## IPC Commands
 
 ### User Commands
 - `get_user` - Get user by ID
 - `get_current_user` - Get current logged-in user
-- `update_user` - Update user profile
+- `update_user` - Update user profile (name, about, phone with validation)
 - `get_contacts` - Get all contacts
 - `add_contact` - Add new contact
 

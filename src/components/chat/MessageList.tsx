@@ -26,12 +26,16 @@ export function MessageList() {
     return map;
   }, [chatMessages]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages and mark as read
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+    // Mark new messages as read if chat is visible
+    if (activeChat && document.visibilityState === "visible" && chatMessages.length > 0) {
+      markAsRead(activeChat.id);
+    }
+  }, [chatMessages, activeChat, markAsRead]);
 
   // Send read receipts and reload messages when window becomes visible/focused
   const loadMessages = useMessageStore((state) => state.loadMessages);

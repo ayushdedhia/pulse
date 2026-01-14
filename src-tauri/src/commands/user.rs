@@ -2,8 +2,7 @@ use crate::db::Database;
 use crate::crypto::storage;
 use crate::models::User;
 use crate::utils::validation::{
-    validate_about, validate_phone, validate_phone_id, validate_url, validate_user_id,
-    validate_user_name,
+    validate_about, validate_phone, validate_phone_id, validate_url, validate_user_name,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rusqlite::OptionalExtension;
@@ -33,8 +32,8 @@ fn write_identity_file(app: &AppHandle, user_id: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_user(db: State<'_, Database>, user_id: String) -> Result<User, String> {
-    // Validate input
-    validate_user_id(&user_id)?;
+    // Validate input (user ID can be phone number with + prefix)
+    validate_phone_id(&user_id)?;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
@@ -84,8 +83,8 @@ pub fn get_current_user(db: State<'_, Database>) -> Result<User, String> {
 
 #[tauri::command]
 pub fn update_user(db: State<'_, Database>, user: User) -> Result<bool, String> {
-    // Validate input
-    validate_user_id(&user.id)?;
+    // Validate input (user ID can be phone number with + prefix)
+    validate_phone_id(&user.id)?;
     validate_user_name(&user.name)?;
     validate_about(user.about.as_deref())?;
     validate_url(user.avatar_url.as_deref())?;
@@ -302,8 +301,8 @@ pub fn add_contact(
     name: String,
     phone: Option<String>,
 ) -> Result<User, String> {
-    // Validate input
-    validate_user_id(&id)?;
+    // Validate and normalize contact ID (accepts phone numbers with + prefix)
+    let normalized_id = validate_phone_id(&id)?;
     validate_user_name(&name)?;
     validate_phone(phone.as_deref())?;
 
@@ -312,7 +311,7 @@ pub fn add_contact(
 
     // Check if contact already exists
     let exists: bool = conn
-        .query_row("SELECT 1 FROM users WHERE id = ?1", [&id], |_| Ok(true))
+        .query_row("SELECT 1 FROM users WHERE id = ?1", [&normalized_id], |_| Ok(true))
         .unwrap_or(false);
 
     if exists {
@@ -322,12 +321,12 @@ pub fn add_contact(
     conn.execute(
         "INSERT INTO users (id, name, phone, avatar_url, about, last_seen, is_online, is_self)
          VALUES (?1, ?2, ?3, '', 'Hey there! I am using Pulse', ?4, 0, 0)",
-        (&id, &name, &phone, now),
+        (&normalized_id, &name, &phone, now),
     )
     .map_err(|e| e.to_string())?;
 
     Ok(User {
-        id,
+        id: normalized_id,
         name,
         display_name: None,
         phone,
@@ -347,7 +346,7 @@ pub fn save_contact(
     user_id: String,
     display_name: String,
 ) -> Result<User, String> {
-    validate_user_id(&user_id)?;
+    validate_phone_id(&user_id)?;
     validate_user_name(&display_name)?;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
@@ -451,8 +450,8 @@ pub fn save_peer_avatar(
     user_id: String,
     avatar_data: String,
 ) -> Result<String, String> {
-    // Validate user ID
-    validate_user_id(&user_id)?;
+    // Validate user ID (can be phone number with + prefix)
+    validate_phone_id(&user_id)?;
 
     // Decode base64
     let bytes = BASE64

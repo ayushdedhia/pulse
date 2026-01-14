@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 
+import { CallErrorModal } from "./components/call/CallErrorModal";
+import { CallOverlay } from "./components/call/CallOverlay";
+import { DeviceSelectionModal } from "./components/call/DeviceSelectionModal";
+import { IncomingCallModal } from "./components/call/IncomingCallModal";
 import { AppLayout } from "./components/layout/AppLayout";
 import { OnboardingModal } from "./components/modals/OnboardingModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
@@ -75,6 +79,11 @@ function App() {
   return (
     <WebSocketProvider>
       <AppLayout />
+      {/* Video Call Components */}
+      <IncomingCallModal />
+      <DeviceSelectionModal />
+      <CallOverlay />
+      <CallErrorModal />
       {showOnboarding && (
         <OnboardingModal onComplete={() => setOnboardingComplete(true)} />
       )}
