@@ -25,6 +25,7 @@ export function CallOverlay() {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(console.warn);
     }
   }, [localStream]);
 
@@ -32,8 +33,9 @@ export function CallOverlay() {
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(console.warn);
     }
-  }, [remoteStream]);
+  }, [remoteStream, callStatus]);
 
   // Update call duration timer
   useEffect(() => {

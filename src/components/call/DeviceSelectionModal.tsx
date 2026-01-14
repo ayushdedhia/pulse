@@ -31,13 +31,50 @@ export function DeviceSelectionModal() {
       setError(null);
 
       try {
-        // First, get the preview stream with NO device constraints (just use defaults)
-        // This avoids issues with stale device IDs from localStorage
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Enumerate devices first (we get IDs but possibly no labels yet)
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDeviceIds = devices.filter(d => d.kind === "videoinput").map(d => d.deviceId);
+
+        // Get preferred devices and build priority order
+        const preferred = callService.getPreferredDevices();
+        const videoOrder = preferred.videoDeviceId
+          ? [preferred.videoDeviceId, ...videoDeviceIds.filter(id => id !== preferred.videoDeviceId)]
+          : videoDeviceIds;
+
+        // Try each video device until one works
+        let stream: MediaStream | null = null;
+        let lastError: unknown = null;
+
+        for (const videoId of videoOrder) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: videoId } },
+              audio: true,
+            });
+            break; // Success!
+          } catch (err) {
+            lastError = err;
+            console.warn(`Failed to get stream with video device ${videoId}:`, err);
+          }
+        }
+
+        // If all specific devices failed, try with no constraints as last resort
+        if (!stream) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        if (!stream) {
+          throw lastError || new Error("No available camera");
+        }
+
         streamRef.current = stream;
         setPreviewStream(stream);
 
-        // Now enumerate devices - we'll have labels since we have an active stream
+        // Now enumerate devices again - we'll have labels since we have an active stream
         const { videoDevices: vd, audioDevices: ad } = await callService.getAvailableDevices();
         setVideoDevices(vd);
         setAudioDevices(ad);
@@ -48,21 +85,14 @@ export function DeviceSelectionModal() {
         const activeVideoId = videoTrack?.getSettings().deviceId || "";
         const activeAudioId = audioTrack?.getSettings().deviceId || "";
 
-        // Use active devices, or fall back to preferred/first available
-        const preferred = callService.getPreferredDevices();
-        const videoId = activeVideoId ||
-          (preferred.videoDeviceId && vd.some(d => d.deviceId === preferred.videoDeviceId) ? preferred.videoDeviceId : vd[0]?.deviceId || "");
-        const audioId = activeAudioId ||
-          (preferred.audioDeviceId && ad.some(d => d.deviceId === preferred.audioDeviceId) ? preferred.audioDeviceId : ad[0]?.deviceId || "");
-
-        setSelectedVideoId(videoId);
-        setSelectedAudioId(audioId);
+        setSelectedVideoId(activeVideoId || vd[0]?.deviceId || "");
+        setSelectedAudioId(activeAudioId || ad[0]?.deviceId || "");
       } catch (err) {
         console.error("Failed to load devices:", err);
         // Show more specific error message
         if (err instanceof DOMException) {
           if (err.name === "NotReadableError") {
-            setError("Camera or microphone is in use by another app. Please close it and try again.");
+            setError("All cameras are in use by other apps. Please close them and try again.");
           } else if (err.name === "NotAllowedError") {
             setError("Permission denied. Please allow camera and microphone access.");
           } else {
