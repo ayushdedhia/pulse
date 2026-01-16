@@ -169,9 +169,14 @@ class CallService {
       this.pc.close();
     }
 
-    const iceServers = await turnService.getIceServers();
+    let iceServers: RTCIceServer[];
+    try {
+      iceServers = await turnService.getIceServers();
+    } catch (error) {
+      console.warn("Failed to fetch TURN servers, falling back to STUN only:", error);
+      iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
+    }
     this.pc = new RTCPeerConnection({ iceServers });
-
     // Handle ICE candidates
     this.pc.onicecandidate = (event) => {
       if (event.candidate && this.sendMessage) {
