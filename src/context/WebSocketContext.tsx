@@ -202,7 +202,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           }
           break;
 
-        // === Video Call Messages ===
         case "call_invite":
           if (data.call_id && data.from_user_id && data.from_user_id !== currentUser?.id) {
             const callerName = (data.from_user_name as string) || "Unknown";

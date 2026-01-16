@@ -18,8 +18,6 @@ pub fn get_crypto_manager() -> &'static CryptoManager {
     CRYPTO_MANAGER.get_or_init(CryptoManager::new)
 }
 
-// ============= Tauri Commands =============
-
 #[tauri::command]
 pub fn generate_keys() -> Result<String, String> {
     let manager = get_crypto_manager();
@@ -62,8 +60,6 @@ pub fn has_chat_session(chat_id: String) -> Result<bool, String> {
     let manager = get_crypto_manager();
     Ok(manager.has_session(&chat_id))
 }
-
-// ============= Persistent Key Commands =============
 
 /// Initialize identity keys from persistent storage
 /// Called once during app startup

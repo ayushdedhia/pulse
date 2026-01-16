@@ -428,6 +428,9 @@ class CallService {
       return;
     }
 
+    // Update status immediately to prevent UI race conditions
+    useCallStore.getState().setCallStatus("connecting");
+
     // Stop ringtone
     this.stopRingtone();
 
@@ -447,9 +450,6 @@ class CallService {
       useCallStore.getState().setCallError(this.getMediaErrorMessage(err));
       return;
     }
-
-    // Update status
-    useCallStore.getState().setCallStatus("connecting");
 
     // Send accept message
     this.sendMessage({
@@ -736,8 +736,6 @@ class CallService {
     }
     return "Could not access camera or microphone. Please check your device settings and try again.";
   }
-
-  // === Sound Methods ===
 
   playRingtone(): void {
     if (!ringtoneAudio) {

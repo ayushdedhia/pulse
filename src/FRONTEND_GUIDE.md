@@ -43,7 +43,9 @@ src/
 │   ├── chatService.ts         # Chat API calls
 │   ├── messageService.ts      # Message API calls
 │   ├── websocketService.ts    # WebSocket API calls
-│   └── cryptoService.ts       # E2E encryption API calls
+│   ├── cryptoService.ts       # E2E encryption API calls
+│   ├── callService.ts         # Video call management (WebRTC)
+│   └── turnService.ts         # TURN/ICE server credentials
 ├── store/                      # Zustand stores
 │   ├── chatStore.ts           # Chat list + active chat state
 │   ├── messageStore.ts        # Messages by chatId

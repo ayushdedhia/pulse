@@ -171,8 +171,6 @@ impl CryptoManager {
         self.session_keys.lock().unwrap().contains_key(chat_id)
     }
 
-    // ============= Persistent Key Management =============
-
     /// Initialize identity from persistent storage or generate new keys
     /// This should be called once during app startup
     pub fn init_identity(&self, conn: &Connection, user_id: &str) -> Result<IdentityInfo, String> {

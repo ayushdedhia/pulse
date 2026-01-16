@@ -23,7 +23,8 @@ src-tauri/src/
 │   ├── user.rs               # get_user, get_current_user, update_user, get_contacts, add_contact
 │   ├── chat.rs               # get_chats, create_chat
 │   ├── message.rs            # get_messages, send_message, mark_as_read, search_messages, receive_message
-│   └── websocket.rs          # broadcast_message, get_ws_port, connect_to_peer, get_network_status
+│   ├── websocket.rs          # broadcast_message, get_ws_port, connect_to_peer, get_network_status
+│   └── turn.rs               # get_turn_credentials (TURN server API)
 ├── websocket/                 # WebSocket server
 │   ├── mod.rs                # Re-exports + init_websocket_server
 │   ├── server.rs             # WebSocketServer struct + NetworkStatus, PeerInfo
@@ -78,6 +79,9 @@ Shared utilities extracted to `utils/`:
 - `get_ws_port` - Get WebSocket server port
 - `connect_to_peer` - Connect to peer by IP
 - `get_network_status` - Get current network status
+
+### TURN Server Commands
+- `get_turn_credentials` - Fetch TURN/STUN servers from Metered.ca API (falls back to Google STUN)
 
 ### Crypto Commands
 - `generate_keys` - Generate new X25519 keypair

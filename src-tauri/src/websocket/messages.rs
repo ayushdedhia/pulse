@@ -75,7 +75,6 @@ pub enum WsMessage {
         avatar_data: Option<String>,
     },
 
-    // === Video Call Control Messages ===
     #[serde(rename = "call_invite")]
     CallInvite {
         call_id: String,
@@ -109,7 +108,6 @@ pub enum WsMessage {
         to_user_id: String,
     },
 
-    // === WebRTC Signaling Messages ===
     #[serde(rename = "rtc_offer")]
     RtcOffer {
         call_id: String,

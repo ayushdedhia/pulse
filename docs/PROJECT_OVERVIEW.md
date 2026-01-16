@@ -10,6 +10,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - **Database**: SQLite (local via rusqlite)
 - **Real-time**: WebSocket (tokio-tungstenite)
 - **Encryption**: X25519 + AES-256-GCM (E2E)
+- **Video Calling**: WebRTC with TURN/STUN (Metered.ca)
 - **Icons**: Lucide React
 - **Fonts**: Inter (UI), JetBrains Mono (monospace for IDs/IPs)
 
@@ -53,6 +54,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] User presence (online/offline/last seen)
 - [x] E2E Crypto Commands: generate_keys, get_public_key, init_chat_session, encrypt_message, decrypt_message, has_chat_session
 - [x] Persistent key storage: init_identity, store_peer_key, get_peer_key, ensure_chat_session
+- [x] TURN server integration: get_turn_credentials (Metered.ca API)
 - [ ] File upload/storage
 
 ## Design Reference
@@ -141,6 +143,13 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
   - FIFO ordering preserved (max 1000 messages per user)
   - Typing indicators not queued (ephemeral)
   - Targeted routing via `recipient_id` field
+- **Video calling with WebRTC**
+  - 1-on-1 video calls with camera and microphone
+  - Device selection modal for choosing camera/mic
+  - TURN server support via Metered.ca for NAT traversal
+  - ICE server credentials fetched securely from backend
+  - Fallback to Google STUN servers if TURN unavailable
+  - 12-hour TTL caching for TURN credentials
 - **Dev scripts for local testing**
   - `scripts/dev-client.ps1` - Launch client with optional fresh DB (`-Fresh`) and multi-instance (`-Instance 2`)
   - `scripts/local-test.ps1` - Full setup: cleanup + server + 2 clients

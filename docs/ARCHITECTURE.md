@@ -49,7 +49,9 @@ src/
 │   ├── chatService.ts         # Chat commands
 │   ├── messageService.ts      # Message commands
 │   ├── websocketService.ts    # WebSocket commands
-│   └── cryptoService.ts       # E2E encryption commands
+│   ├── cryptoService.ts       # E2E encryption commands
+│   ├── callService.ts         # Video call management
+│   └── turnService.ts         # TURN/ICE server credentials
 ├── store/                      # Zustand stores
 │   ├── chatStore.ts           # Chat list + active chat state
 │   ├── messageStore.ts        # Messages by chatId
@@ -90,7 +92,8 @@ src-tauri/src/
 │   ├── user.rs               # get_user, get_current_user, update_user, get_contacts, add_contact
 │   ├── chat.rs               # get_chats, create_chat
 │   ├── message.rs            # get_messages, send_message, mark_as_read, search_messages, receive_message
-│   └── websocket.rs          # broadcast_message, connect_websocket, broadcast_presence
+│   ├── websocket.rs          # broadcast_message, connect_websocket, broadcast_presence
+│   └── turn.rs               # get_turn_credentials (TURN server API)
 ├── websocket/                 # WebSocket client (connects to central server)
 │   ├── mod.rs                # Re-exports + init_websocket
 │   ├── client.rs             # WebSocketClient struct

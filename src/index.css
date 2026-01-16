@@ -143,8 +143,6 @@ textarea {
   resize: none;
 }
 
-/* ==================== ANIMATIONS ==================== */
-
 /* Typing indicator dots */
 @keyframes typingBounce {
   0%, 60%, 100% {
@@ -317,8 +315,6 @@ textarea {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* ==================== WHATSAPP CHAT BACKGROUND ==================== */
-
 .chat-bg-pattern {
   background-color: var(--bg-chat);
   position: relative;
@@ -337,8 +333,6 @@ textarea {
   opacity: 0.4;
   background-image: url("data:image/svg+xml,%3Csvg width='412' height='412' viewBox='0 0 412 412' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23DAD3C7' fill-opacity='1'%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3Ccircle cx='60' cy='30' r='1.5'/%3E%3Ccircle cx='30' cy='70' r='2'/%3E%3Ccircle cx='90' cy='50' r='1'/%3E%3Ccircle cx='140' cy='20' r='1.5'/%3E%3Ccircle cx='110' cy='80' r='2'/%3E%3Ccircle cx='170' cy='60' r='1'/%3E%3Ccircle cx='200' cy='30' r='2'/%3E%3Ccircle cx='250' cy='70' r='1.5'/%3E%3Ccircle cx='220' cy='100' r='1'/%3E%3Ccircle cx='280' cy='40' r='2'/%3E%3Ccircle cx='320' cy='80' r='1.5'/%3E%3Ccircle cx='350' cy='20' r='1'/%3E%3Ccircle cx='380' cy='60' r='2'/%3E%3Ccircle cx='40' cy='130' r='1.5'/%3E%3Ccircle cx='80' cy='160' r='2'/%3E%3Ccircle cx='120' cy='140' r='1'/%3E%3Ccircle cx='160' cy='180' r='1.5'/%3E%3Ccircle cx='200' cy='150' r='2'/%3E%3Ccircle cx='240' cy='190' r='1'/%3E%3Ccircle cx='280' cy='160' r='1.5'/%3E%3Ccircle cx='320' cy='200' r='2'/%3E%3Ccircle cx='360' cy='170' r='1'/%3E%3Ccircle cx='400' cy='140' r='1.5'/%3E%3Ccircle cx='20' cy='220' r='2'/%3E%3Ccircle cx='60' cy='260' r='1'/%3E%3Ccircle cx='100' cy='240' r='1.5'/%3E%3Ccircle cx='140' cy='280' r='2'/%3E%3Ccircle cx='180' cy='250' r='1'/%3E%3Ccircle cx='220' cy='290' r='1.5'/%3E%3Ccircle cx='260' cy='260' r='2'/%3E%3Ccircle cx='300' cy='300' r='1'/%3E%3Ccircle cx='340' cy='270' r='1.5'/%3E%3Ccircle cx='380' cy='240' r='2'/%3E%3Ccircle cx='50' cy='340' r='1'/%3E%3Ccircle cx='90' cy='370' r='1.5'/%3E%3Ccircle cx='130' cy='350' r='2'/%3E%3Ccircle cx='170' cy='390' r='1'/%3E%3Ccircle cx='210' cy='360' r='1.5'/%3E%3Ccircle cx='250' cy='400' r='2'/%3E%3Ccircle cx='290' cy='370' r='1'/%3E%3Ccircle cx='330' cy='340' r='1.5'/%3E%3Ccircle cx='370' cy='380' r='2'/%3E%3Cpath d='M15 95 L25 85 L20 95 L25 105 Z' /%3E%3Cpath d='M95 15 L105 5 L100 15 L105 25 Z' /%3E%3Cpath d='M175 115 L185 105 L180 115 L185 125 Z' /%3E%3Cpath d='M255 215 L265 205 L260 215 L265 225 Z' /%3E%3Cpath d='M335 315 L345 305 L340 315 L345 325 Z' /%3E%3Crect x='45' y='195' width='8' height='8' rx='1' /%3E%3Crect x='145' y='295' width='8' height='8' rx='1' /%3E%3Crect x='245' y='95' width='8' height='8' rx='1' /%3E%3Crect x='345' y='395' width='8' height='8' rx='1' /%3E%3C/g%3E%3C/svg%3E");
 }
-
-/* ==================== TRANSITIONS ==================== */
 
 /* Global smooth transitions */
 .transition-theme {
@@ -361,8 +355,6 @@ textarea {
 .btn-hover:active {
   transform: scale(0.95);
 }
-
-/* ==================== UTILITY CLASSES ==================== */
 
 /* Hide scrollbar but keep functionality */
 .no-scrollbar {
@@ -497,8 +489,6 @@ textarea {
 .active-press:active {
   transform: scale(0.98);
 }
-
-/* ==================== EMOJI PICKER (emoji-mart) ==================== */
 
 .emoji-picker-container {
   border-radius: 12px;

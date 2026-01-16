@@ -129,8 +129,6 @@ pub fn validate_url(url: Option<&str>) -> Result<(), String> {
 mod tests {
     use super::*;
 
-    // ==================== validate_phone_id tests ====================
-
     #[test]
     fn test_valid_phone_ids() {
         // Standard formats
