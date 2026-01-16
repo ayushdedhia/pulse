@@ -40,6 +40,9 @@ fn init_tracing(log_dir: PathBuf) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Load environment variables from .env file (if present)
+    dotenvy::dotenv().ok();
+
     // Initialize tracing early with a temporary directory
     // We'll log to the app data dir once Tauri gives us the path
     let temp_log_dir = std::env::temp_dir().join("pulse-logs");
@@ -99,6 +102,8 @@ pub fn run() {
             commands::user::save_peer_avatar,
             // URL preview commands
             commands::url_preview::fetch_preview,
+            // TURN server commands
+            commands::turn::get_turn_credentials,
             // WebSocket commands
             commands::websocket::broadcast_message,
             commands::websocket::get_server_url,

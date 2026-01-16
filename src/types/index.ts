@@ -72,6 +72,14 @@ export interface NetworkStatus {
   connected_peers: PeerInfo[];
 }
 
+// === TURN/ICE Types ===
+
+export interface IceServer {
+  urls: string;
+  username?: string;
+  credential?: string;
+}
+
 // === Video Call Types ===
 
 export type CallStatus = "idle" | "outgoing" | "incoming" | "connecting" | "connected";

@@ -18,6 +18,7 @@ Thumbs.db
 .env
 .env.local
 .env.production
+src-tauri/.env
 
 # Logs
 *.log

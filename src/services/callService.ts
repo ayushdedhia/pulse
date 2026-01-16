@@ -1,12 +1,7 @@
 import { useCallStore } from "../store/callStore";
 import { useUserStore } from "../store/userStore";
+import { turnService } from "./turnService";
 import type { CallMessage } from "../types";
-
-// STUN server for NAT traversal (free Google STUN)
-const ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-];
 
 // Call timeout in milliseconds (30 seconds)
 const CALL_TIMEOUT_MS = 30000;
@@ -169,12 +164,13 @@ class CallService {
   /**
    * Initialize RTCPeerConnection with event handlers
    */
-  private initPeerConnection(): RTCPeerConnection {
+  private async initPeerConnection(): Promise<RTCPeerConnection> {
     if (this.pc) {
       this.pc.close();
     }
 
-    this.pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const iceServers = await turnService.getIceServers();
+    this.pc = new RTCPeerConnection({ iceServers });
 
     // Handle ICE candidates
     this.pc.onicecandidate = (event) => {
@@ -322,7 +318,7 @@ class CallService {
 
       // Initialize peer connection and add tracks
       console.log("[acceptCall] Initializing peer connection...");
-      this.initPeerConnection();
+      await this.initPeerConnection();
       localStream.getTracks().forEach((track) => {
         this.pc?.addTrack(track, localStream);
       });
@@ -436,7 +432,7 @@ class CallService {
       useCallStore.getState().setLocalStream(localStream);
 
       // Initialize peer connection and add tracks
-      this.initPeerConnection();
+      await this.initPeerConnection();
       localStream.getTracks().forEach((track) => {
         this.pc?.addTrack(track, localStream);
       });
@@ -543,7 +539,7 @@ class CallService {
     this.stopDialtone();
 
     // Initialize peer connection and add tracks
-    this.initPeerConnection();
+    await this.initPeerConnection();
     localStream.getTracks().forEach((track) => {
       this.pc?.addTrack(track, localStream);
     });
