@@ -35,8 +35,15 @@ pub async fn handle_connection(ws_stream: WebSocketStream<TcpStream>, state: Arc
         success: true,
         message: "Connected to server".to_string(),
     };
-    if let Ok(json) = serde_json::to_string(&auth_response) {
-        let _ = ws_sender.send(Message::Text(json.into())).await;
+    match serde_json::to_string(&auth_response) {
+        Ok(json) => {
+            if let Err(e) = ws_sender.send(Message::Text(json.into())).await {
+                error!("Failed to send auth response to {}: {}", user_id, e);
+            }
+        }
+        Err(e) => {
+            error!("Failed to serialize auth response for {}: {}", user_id, e);
+        }
     }
 
     // Broadcast presence to all other clients
@@ -45,8 +52,9 @@ pub async fn handle_connection(ws_stream: WebSocketStream<TcpStream>, state: Arc
         is_online: true,
         last_seen: None,
     };
-    if let Ok(json) = serde_json::to_string(&presence) {
-        state.broadcast(&json, Some(&user_id));
+    match serde_json::to_string(&presence) {
+        Ok(json) => state.broadcast(&json, Some(&user_id)),
+        Err(e) => error!("Failed to serialize presence for {}: {}", user_id, e),
     }
 
     // Send existing online users to the newly connected client
@@ -77,7 +85,7 @@ pub async fn handle_connection(ws_stream: WebSocketStream<TcpStream>, state: Arc
     }
 
     // Spawn task to forward messages from channel to WebSocket
-    let send_task = tokio::spawn(async move {
+    let mut send_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             if ws_sender.send(Message::Text(msg.into())).await.is_err() {
                 break;
@@ -86,26 +94,41 @@ pub async fn handle_connection(ws_stream: WebSocketStream<TcpStream>, state: Arc
     });
 
     // Process incoming messages
+    // Process incoming messages and monitor send task
     let user_id_clone = user_id.clone();
     let state_clone = state.clone();
-    while let Some(result) = ws_receiver.next().await {
-        match result {
-            Ok(Message::Text(text)) => {
-                handle_message(&text, &user_id_clone, &state_clone);
+
+    loop {
+        tokio::select! {
+            // Branch 1: Read from WebSocket
+            res = ws_receiver.next() => {
+                match res {
+                    Some(Ok(Message::Text(text))) => {
+                        handle_message(&text, &user_id_clone, &state_clone);
+                    }
+                    Some(Ok(Message::Close(_))) => {
+                        info!("User {} sent close frame", user_id_clone);
+                        break;
+                    }
+                    Some(Ok(Message::Ping(data))) => {
+                        let _ = data;
+                    }
+                    Some(Err(e)) => {
+                        error!("WebSocket error for user {}: {}", user_id_clone, e);
+                        break;
+                    }
+                    None => {
+                        info!("WebSocket stream ended for user {}", user_id_clone);
+                        break;
+                    }
+                    _ => {}
+                }
             }
-            Ok(Message::Close(_)) => {
-                info!("User {} sent close frame", user_id_clone);
+            // Branch 2: Monitor Send Task (Write errors)
+            _ = &mut send_task => {
+                info!("Send task finished for user {} (likely connection lost)", user_id_clone);
                 break;
             }
-            Ok(Message::Ping(data)) => {
-                // Pong is handled automatically by tungstenite
-                let _ = data;
-            }
-            Err(e) => {
-                error!("WebSocket error for user {}: {}", user_id_clone, e);
-                break;
-            }
-            _ => {}
         }
     }
 
@@ -134,9 +157,34 @@ async fn wait_for_connect(
     let timeout = tokio::time::timeout(std::time::Duration::from_secs(10), async {
         while let Some(result) = receiver.next().await {
             if let Ok(Message::Text(text)) = result {
-                if let Ok(msg) = serde_json::from_str::<WsMessage>(&text) {
-                    if let WsMessage::Connect { user_id } = msg {
-                        return Some(user_id);
+                match serde_json::from_str::<WsMessage>(&text) {
+                    Ok(msg) => {
+                        if let WsMessage::Connect { user_id, token } = msg {
+                            // Basic auth check using environment variable
+                            if let Ok(expected_token) = std::env::var("PULSE_ACCESS_TOKEN") {
+                                if !expected_token.is_empty() {
+                                    if let Some(received_token) = token {
+                                        if received_token != expected_token {
+                                            warn!(
+                                                "Authentication failed for {}: Invalid token",
+                                                user_id
+                                            );
+                                            return None;
+                                        }
+                                    } else {
+                                        warn!(
+                                            "Authentication failed for {}: No token provided",
+                                            user_id
+                                        );
+                                        return None;
+                                    }
+                                }
+                            }
+                            return Some(user_id);
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse Connect message: {}", e);
                     }
                 }
             }
@@ -154,8 +202,8 @@ async fn wait_for_connect(
 }
 
 /// Handle an incoming message from a connected client
-fn handle_message(text: &str, sender_id: &str, state: &ServerState) {
-    let msg: WsMessage = match serde_json::from_str(text) {
+pub fn handle_message(text: &str, sender_id: &str, state: &ServerState) {
+    let mut msg: WsMessage = match serde_json::from_str(text) {
         Ok(m) => m,
         Err(e) => {
             warn!("Failed to parse message from {}: {}", sender_id, e);
@@ -163,30 +211,79 @@ fn handle_message(text: &str, sender_id: &str, state: &ServerState) {
         }
     };
 
+    // Enforce sender identity to prevent spoofing
+    match &mut msg {
+        WsMessage::ChatMessage {
+            sender_id: sid,
+            sender_name: _,
+            ..
+        } => *sid = sender_id.to_string(),
+        WsMessage::Typing { user_id, .. } => *user_id = sender_id.to_string(),
+        WsMessage::Presence { user_id, .. } => *user_id = sender_id.to_string(),
+
+        // CORRECTION: In receipts, 'sender_id' is the DESTINATION (original sender of the Msg).
+        // We must enforce that the 'delivered_to' / 'user_id' matches the current connection.
+        WsMessage::DeliveryReceipt {
+            delivered_to: dt, ..
+        } => *dt = sender_id.to_string(),
+
+        WsMessage::ReadReceipt { user_id: uid, .. } => *uid = sender_id.to_string(),
+
+        WsMessage::ProfileUpdate { user_id, .. } => *user_id = sender_id.to_string(),
+
+        // Video Call & WebRTC - Sender Enforcement
+        WsMessage::CallInvite { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::CallRinging { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::CallAccept { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::CallReject { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::CallHangup { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::RtcOffer { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::RtcAnswer { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+        WsMessage::RtcIceCandidate { from_user_id, .. } => *from_user_id = sender_id.to_string(),
+
+        // Messages that shouldn't be sent by client or don't generally carry spoofable sender_id in this context
+        WsMessage::Connect { .. } | WsMessage::AuthResponse { .. } | WsMessage::Error { .. } => {}
+    }
+
+    // Re-serialize the secure message
+    let safe_text = match serde_json::to_string(&msg) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("Failed to re-serialize message from {}: {}", sender_id, e);
+            return;
+        }
+    };
+
     match &msg {
         WsMessage::ChatMessage { recipient_id, .. } => {
             // Route to specific recipient (queues if offline)
-            state.send_or_queue(recipient_id, text);
+            state.send_or_queue(recipient_id, &safe_text);
         }
         WsMessage::Typing { .. } => {
             // Typing indicators are ephemeral - don't queue, just broadcast
-            state.broadcast(text, Some(sender_id));
+            state.broadcast(&safe_text, Some(sender_id));
         }
         WsMessage::Presence { .. } => {
             // Presence is broadcast to all online users
-            state.broadcast(text, Some(sender_id));
+            state.broadcast(&safe_text, Some(sender_id));
         }
-        WsMessage::DeliveryReceipt { sender_id: original_sender, .. } => {
-            // Route receipt back to original message sender (queues if offline)
-            state.send_or_queue(original_sender, text);
+        WsMessage::DeliveryReceipt {
+            sender_id: original_sender,
+            ..
+        } => {
+            // Route receipt BACK to the original sender of the message.
+            state.send_or_queue(original_sender, &safe_text);
         }
-        WsMessage::ReadReceipt { sender_id: original_sender, .. } => {
-            // Route receipt back to original message sender (queues if offline)
-            state.send_or_queue(original_sender, text);
+        WsMessage::ReadReceipt {
+            sender_id: original_sender,
+            ..
+        } => {
+            // Route receipt BACK to the original sender of the message.
+            state.send_or_queue(original_sender, &safe_text);
         }
         WsMessage::ProfileUpdate { .. } => {
             // Profile updates broadcast to all online users
-            state.broadcast(text, Some(sender_id));
+            state.broadcast(&safe_text, Some(sender_id));
         }
         // === Video Call Control - route directly to recipient (no queue, time-sensitive) ===
         WsMessage::CallInvite { to_user_id, .. }
@@ -198,7 +295,7 @@ fn handle_message(text: &str, sender_id: &str, state: &ServerState) {
         | WsMessage::RtcAnswer { to_user_id, .. }
         | WsMessage::RtcIceCandidate { to_user_id, .. } => {
             // Call signaling is time-sensitive - send directly, don't queue
-            state.send_to_user(to_user_id, text);
+            state.send_to_user(to_user_id, &safe_text);
         }
         WsMessage::Connect { .. } => {
             // Already authenticated, ignore

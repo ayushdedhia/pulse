@@ -59,7 +59,11 @@ pub enum WsMessage {
         message_ids: Vec<String>,
     },
     #[serde(rename = "connect")]
-    Connect { user_id: String },
+    Connect {
+        user_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        token: Option<String>,
+    },
     #[serde(rename = "auth_response")]
     AuthResponse { success: bool, message: String },
     #[serde(rename = "error")]
@@ -140,6 +144,7 @@ mod tests {
     fn test_connect_message_serialization() {
         let msg = WsMessage::Connect {
             user_id: "user123".to_string(),
+            token: None,
         };
 
         let json = serde_json::to_string(&msg).unwrap();
@@ -148,7 +153,7 @@ mod tests {
 
         // Deserialize back
         let parsed: WsMessage = serde_json::from_str(&json).unwrap();
-        if let WsMessage::Connect { user_id } = parsed {
+        if let WsMessage::Connect { user_id, .. } = parsed {
             assert_eq!(user_id, "user123");
         } else {
             panic!("Expected Connect message");
@@ -311,7 +316,7 @@ mod tests {
         // Test parsing JSON in the format the frontend sends
         let json = r#"{"type":"connect","user_id":"abc-123"}"#;
         let msg: WsMessage = serde_json::from_str(json).unwrap();
-        if let WsMessage::Connect { user_id } = msg {
+        if let WsMessage::Connect { user_id, .. } = msg {
             assert_eq!(user_id, "abc-123");
         } else {
             panic!("Expected Connect");

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use tokio::sync::{broadcast, mpsc, Mutex as TokioMutex};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 /// Server URL: checked at compile time via env!, falls back to runtime env var, then default
 const DEFAULT_SERVER_URL: &str = "ws://localhost:9001";
@@ -96,12 +96,18 @@ impl WebSocketClient {
                         let (mut ws_write, mut ws_read) = ws_stream.split();
 
                         // Send Connect message
+                        let token = std::env::var("PULSE_ACCESS_TOKEN").ok();
                         let connect_msg = WsMessage::Connect {
                             user_id: user_id.clone(),
+                            token,
                         };
                         let connect_json = serde_json::to_string(&connect_msg).unwrap();
 
-                        if ws_write.send(Message::Text(connect_json.into())).await.is_err() {
+                        if ws_write
+                            .send(Message::Text(connect_json.into()))
+                            .await
+                            .is_err()
+                        {
                             error!("Failed to send connect message");
                             *connected.lock().await = false;
                             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
@@ -118,7 +124,8 @@ impl WebSocketClient {
                                         } else {
                                             error!("Authentication failed: {}", message);
                                             *connected.lock().await = false;
-                                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                                            tokio::time::sleep(tokio::time::Duration::from_secs(3))
+                                                .await;
                                             continue;
                                         }
                                     }
@@ -173,7 +180,7 @@ impl WebSocketClient {
                                 msg = ws_read.next() => {
                                     match msg {
                                         Some(Ok(Message::Text(text))) => {
-                                            debug!(preview = %&text[..100.min(text.len())], "Received from server");
+                                            trace!(preview = %&text[..100.min(text.len())], "Received from server");
                                         }
                                         Some(Ok(Message::Close(_))) | None => {
                                             info!("Server closed connection");
@@ -231,13 +238,17 @@ impl WebSocketClient {
     /// Send a message to the server
     pub fn send(&self, message: WsMessage) -> Result<(), String> {
         let json = serde_json::to_string(&message).map_err(|e| e.to_string())?;
-        debug!(preview = %&json[..100.min(json.len())], "Sending message to server");
+        trace!(preview = %&json[..100.min(json.len())], "Sending message to server");
 
         // Use blocking lock since this is called from sync Tauri commands
-        let guard = self.write_tx.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        let guard = self
+            .write_tx
+            .lock()
+            .map_err(|e| format!("Lock poisoned: {}", e))?;
 
         if let Some(tx) = guard.as_ref() {
-            tx.send(WriteMessage::Data(json)).map_err(|e| format!("Failed to send to server: {}", e))?;
+            tx.send(WriteMessage::Data(json))
+                .map_err(|e| format!("Failed to send to server: {}", e))?;
             Ok(())
         } else {
             // Not connected to server - log warning but don't fail

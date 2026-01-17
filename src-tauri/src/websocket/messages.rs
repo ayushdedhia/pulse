@@ -58,7 +58,11 @@ pub enum WsMessage {
         message_ids: Vec<String>,
     },
     #[serde(rename = "connect")]
-    Connect { user_id: String },
+    Connect {
+        user_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        token: Option<String>,
+    },
     #[serde(rename = "auth_response")]
     AuthResponse { success: bool, message: String },
     #[serde(rename = "error")]
@@ -139,13 +143,13 @@ mod tests {
     fn test_connect_message_roundtrip() {
         let msg = WsMessage::Connect {
             user_id: "user123".to_string(),
+            token: None,
         };
 
         let json = serde_json::to_string(&msg).unwrap();
         let parsed: WsMessage = serde_json::from_str(&json).unwrap();
-
-        if let WsMessage::Connect { user_id } = parsed {
-            assert_eq!(user_id, "user123");
+        if let WsMessage::Connect { user_id, .. } = parsed {
+            assert_eq!(user_id.as_str(), "user123");
         } else {
             panic!("Expected Connect");
         }
@@ -342,10 +346,38 @@ mod tests {
     }
 
     #[test]
+    fn test_deserialize_from_frontend_format() {
+        // Test parsing JSON in the format the frontend sends
+        let json = r#"{"type":"connect","user_id":"abc-123"}"#;
+        let msg: WsMessage = serde_json::from_str(json).unwrap();
+        if let WsMessage::Connect { user_id, .. } = msg {
+            assert_eq!(user_id.as_str(), "abc-123");
+        } else {
+            panic!("Expected Connect");
+        }
+
+        let json = r#"{"type":"typing","chat_id":"chat1","user_id":"user1","is_typing":true}"#;
+        let msg: WsMessage = serde_json::from_str(json).unwrap();
+        if let WsMessage::Typing {
+            chat_id,
+            user_id,
+            is_typing,
+        } = msg
+        {
+            assert_eq!(chat_id, "chat1");
+            assert_eq!(user_id, "user1");
+            assert!(is_typing);
+        } else {
+            panic!("Expected Typing");
+        }
+    }
+
+    #[test]
     fn test_server_client_message_compatibility() {
         // Test that messages serialized by server can be parsed by client
         // Simulate server sending auth_response
-        let server_json = r#"{"type":"auth_response","success":true,"message":"Connected to server"}"#;
+        let server_json =
+            r#"{"type":"auth_response","success":true,"message":"Connected to server"}"#;
         let parsed: WsMessage = serde_json::from_str(server_json).unwrap();
 
         if let WsMessage::AuthResponse { success, .. } = parsed {
@@ -355,7 +387,8 @@ mod tests {
         }
 
         // Simulate server sending presence
-        let server_json = r#"{"type":"presence","user_id":"user2","is_online":true,"last_seen":null}"#;
+        let server_json =
+            r#"{"type":"presence","user_id":"user2","is_online":true,"last_seen":null}"#;
         let parsed: WsMessage = serde_json::from_str(server_json).unwrap();
 
         if let WsMessage::Presence {

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { websocketService } from "../services";
 import { useMessageStore } from "../store/messageStore";
 import { useUserStore } from "../store/userStore";
+import { useChatStore } from "../store/chatStore";
 
 const getMessageActions = () => useMessageStore.getState();
 
@@ -115,8 +116,10 @@ export function useWebSocket() {
           break;
 
         case "presence":
-          // Could update user online status in store
-          console.log("Presence update:", message);
+          if (message.user_id && message.is_online !== undefined) {
+            console.log("Presence update:", message);
+            useChatStore.getState().updateUserStatus(message.user_id, message.is_online);
+          }
           break;
 
         case "read_receipt":

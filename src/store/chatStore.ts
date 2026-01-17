@@ -16,6 +16,7 @@ interface ChatStore {
   updateChatLastMessage: (chatId: string, message: Message) => void;
   clearUnreadCount: (chatId: string) => void;
   addChat: (chat: Chat) => void;
+  updateUserStatus: (userId: string, isOnline: boolean, lastSeen?: number) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -95,5 +96,33 @@ export const useChatStore = create<ChatStore>((set) => ({
       if (exists) return state;
       return { chats: [chat, ...state.chats] };
     });
+  },
+
+  updateUserStatus: (userId: string, isOnline: boolean, lastSeen?: number) => {
+    set((state) => ({
+      chats: state.chats.map((chat) =>
+        chat.participant?.id === userId
+          ? {
+            ...chat,
+            participant: {
+              ...chat.participant,
+              is_online: isOnline,
+              ...(lastSeen ? { last_seen: lastSeen } : {})
+            },
+          }
+          : chat
+      ),
+      activeChat:
+        state.activeChat?.participant?.id === userId
+          ? {
+            ...state.activeChat,
+            participant: {
+              ...state.activeChat.participant,
+              is_online: isOnline,
+              ...(lastSeen ? { last_seen: lastSeen } : {})
+            },
+          }
+          : state.activeChat,
+    }));
   },
 }));

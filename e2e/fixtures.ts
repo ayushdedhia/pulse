@@ -5,6 +5,21 @@ export const test = base.extend<{
   appPage: Page;
 }>({
   appPage: async ({ page }, use) => {
+    // Mock Tauri invoke to prevent crashes
+    await page.addInitScript(() => {
+      // @ts-ignore
+      window.__TAURI__ = {
+        core: {
+          invoke: async (cmd: string, args: any) => {
+            console.log(`Mock invoke: ${cmd}`, args);
+            if (cmd === "get_network_status") return { connected: true, type: "wifi" };
+            if (cmd === "get_ws_auth_token") return "mock-token";
+            return null;
+          },
+        },
+      };
+    });
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await use(page);
@@ -15,7 +30,7 @@ export { expect } from "@playwright/test";
 
 // Page object helpers
 export class OnboardingPage {
-  constructor(private page: Page) {}
+  constructor(private page: Page) { }
 
   async isVisible() {
     return this.page
@@ -95,10 +110,26 @@ export class OnboardingPage {
     const match = text?.match(/\+\d+/);
     return match ? match[0] : null;
   }
+
+  async completeOnboarding() {
+    await this.waitForLoad();
+    // Generate random phone number
+    const randomNum = Math.floor(Math.random() * 9000000000) + 1000000000;
+    const phone = randomNum.toString();
+
+    await this.enterPhone(phone);
+    await this.submit();
+
+    // Wait for chat list to confirm successful onboarding
+    const chatList = new ChatListPage(this.page);
+    await chatList.waitForLoad();
+
+    return { phoneNumber: phone, name: "User " + phone.slice(-4) }; // Name might be default or unknown
+  }
 }
 
 export class ChatListPage {
-  constructor(private page: Page) {}
+  constructor(private page: Page) { }
 
   async isVisible() {
     return this.page.locator('text="Chats"').isVisible().catch(() => false);
@@ -118,7 +149,7 @@ export class ChatListPage {
 }
 
 export class ChatPage {
-  constructor(private page: Page) {}
+  constructor(private page: Page) { }
 
   async isVisible() {
     const input = this.page.locator('[data-testid="message-input"]');
@@ -151,7 +182,7 @@ export class ChatPage {
 
   async isReplyBarVisible() {
     return this.page.locator('text="Replying to"').isVisible().catch(() => false) ||
-           this.page.locator('[class*="animate-slide-down"]').isVisible().catch(() => false);
+      this.page.locator('[class*="animate-slide-down"]').isVisible().catch(() => false);
   }
 
   async closeReplyBar() {

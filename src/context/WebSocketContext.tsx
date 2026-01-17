@@ -28,7 +28,7 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue>({
   isConnected: false,
   typingUsers: {},
-  sendTyping: () => {},
+  sendTyping: () => { },
   onlineUsers: new Set(),
 });
 
@@ -43,6 +43,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   const handleMessage = useCallback(
     async (data: WsMessage) => {
+      const currentUser = useUserStore.getState().currentUser;
+
       switch (data.type) {
         case "message":
           // Save incoming message to local database, then add to store
@@ -110,6 +112,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           if (data.user_id) {
             const userId = data.user_id as string;
             const isOnline = data.is_online as boolean;
+            const lastSeen = data.last_seen as number | undefined;
 
             setOnlineUsers((prev) => {
               const next = new Set(prev);
@@ -120,6 +123,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
               }
               return next;
             });
+
+            // Update chat store to reflect status in UI
+            getChatActions().updateUserStatus(userId, isOnline, lastSeen);
           }
           break;
 
@@ -148,7 +154,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             // Disconnect any existing backend connection, then connect with current ID
             if (currentUser) {
               websocketService.disconnect()
-                .catch(() => {}) // Ignore disconnect errors (might not be connected)
+                .catch(() => { }) // Ignore disconnect errors (might not be connected)
                 .finally(() => {
                   websocketService.connect(currentUser.id)
                     .then(() => websocketService.broadcastPresence(currentUser.id))
@@ -252,7 +258,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           break;
       }
     },
-    [currentUser]
+    []
   );
 
   const userId = currentUser?.id;
