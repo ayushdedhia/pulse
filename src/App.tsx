@@ -17,7 +17,8 @@ import { useUIStore } from "./store/uiStore";
 const SKIPPED_VERSION_KEY = "pulse_skipped_version";
 
 // Test mode: ?test=onboarding forces the modal to show for e2e testing
-const isTestMode = new URLSearchParams(window.location.search).get("test") === "onboarding";
+const isTestMode =
+  new URLSearchParams(window.location.search).get("test") === "onboarding";
 
 function App() {
   const theme = useUIStore((state) => state.theme);
@@ -73,8 +74,9 @@ function App() {
   // Only show onboarding if no chats exist (prevents error when keys regenerated but DB has history)
   // Test mode (?test=onboarding) forces the modal to show for e2e testing
   const showOnboarding =
-    isTestMode ||
-    (isInitialized && isNewIdentity && !onboardingComplete && !!currentUser && chats.length === 0);
+    !onboardingComplete &&
+    (isTestMode ||
+      (isInitialized && isNewIdentity && !!currentUser && chats.length === 0));
 
   return (
     <WebSocketProvider>

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { NetworkStatus, UrlPreview } from "../types";
+import { UrlPreview } from "../types";
 
 export const websocketService = {
   /**
@@ -24,25 +24,20 @@ export const websocketService = {
     content: string,
     senderId: string,
     replyToId?: string,
-    urlPreview?: UrlPreview
+    urlPreview?: UrlPreview,
   ): Promise<boolean> => {
-    return invoke<boolean>("broadcast_message", { messageId, chatId, content, senderId, replyToId, urlPreview });
+    return invoke<boolean>("broadcast_message", {
+      messageId,
+      chatId,
+      content,
+      senderId,
+      replyToId,
+      urlPreview,
+    });
   },
 
-  getWsPort: (): Promise<number> => {
-    return invoke<number>("get_ws_port");
-  },
-
-  getLocalIp: (): Promise<string | null> => {
-    return invoke<string | null>("get_local_ip");
-  },
-
-  getNetworkStatus: (): Promise<NetworkStatus> => {
-    return invoke<NetworkStatus>("get_network_status");
-  },
-
-  connectToPeer: (ip: string, port?: number): Promise<void> => {
-    return invoke<void>("connect_to_peer", { ip, port });
+  getServerUrl: (): Promise<string> => {
+    return invoke<string>("get_server_url");
   },
 
   /**
@@ -68,7 +63,7 @@ export const websocketService = {
     phone?: string,
     avatarUrl?: string,
     about?: string,
-    avatarData?: string
+    avatarData?: string,
   ): Promise<void> => {
     return invoke<void>("broadcast_profile", {
       userId,

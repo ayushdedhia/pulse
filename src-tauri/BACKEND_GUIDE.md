@@ -1,6 +1,7 @@
 # Pulse - Backend Guide
 
 ## Tech Stack
+
 - **Framework**: Tauri 2.0 (Rust)
 - **Database**: SQLite (local via rusqlite)
 - **Real-time**: WebSocket (tokio-tungstenite)
@@ -8,6 +9,7 @@
 - **Key Storage**: keyring crate (cross-platform secure storage)
 
 ## Backend Structure
+
 ```
 src-tauri/src/
 ├── main.rs                    # Tauri entry point
@@ -23,13 +25,13 @@ src-tauri/src/
 │   ├── user.rs               # get_user, get_current_user, update_user, get_contacts, add_contact
 │   ├── chat.rs               # get_chats, create_chat
 │   ├── message.rs            # get_messages, send_message, mark_as_read, search_messages, receive_message
-│   ├── websocket.rs          # broadcast_message, get_ws_port, connect_to_peer, get_network_status
+│   ├── websocket.rs          # broadcast_message, get_ws_url, connect_websocket, disconnect_websocket
 │   └── turn.rs               # get_turn_credentials (TURN server API)
 ├── websocket/                 # WebSocket server
-│   ├── mod.rs                # Re-exports + init_websocket_server
-│   ├── server.rs             # WebSocketServer struct + NetworkStatus, PeerInfo
-│   ├── handlers.rs           # Connection handlers
-│   └── messages.rs           # WsMessage enum
+│   ├── mod.rs                # Re-exports + init_websocket
+│   ├── client.rs             # WebSocketClient struct
+│   ├── messages.rs           # WsMessage enum
+│   └── mod.rs                # Initialization logic
 ├── capabilities/              # Tauri 2.0 permissions
 │   └── default.json          # Window permissions (close, minimize, maximize, drag)
 ├── crypto/                    # E2E encryption
@@ -44,19 +46,23 @@ src-tauri/src/
 ```
 
 ## Backend Module Organization
+
 Commands are organized by domain in separate files:
+
 - `commands::user` - User-related IPC handlers
 - `commands::chat` - Chat management handlers
 - `commands::message` - Message CRUD handlers
 - `commands::websocket` - WebSocket-related handlers
 
 Shared utilities extracted to `utils/`:
+
 - `helpers.rs`: `get_self_id(conn)`, `generate_deterministic_chat_id(id1, id2)`
 - `validation.rs`: `validate_phone_number()` - E.164 format validation (7-15 digits)
 
 ## IPC Commands
 
 ### User Commands
+
 - `get_user` - Get user by ID
 - `get_current_user` - Get current logged-in user
 - `update_user` - Update user profile (name, about, phone with validation)
@@ -64,10 +70,12 @@ Shared utilities extracted to `utils/`:
 - `add_contact` - Add new contact
 
 ### Chat Commands
+
 - `get_chats` - Get all chats for current user
 - `create_chat` - Create new chat
 
 ### Message Commands
+
 - `get_messages` - Get messages for a chat
 - `send_message` - Send a new message (supports `reply_to_id` for replies)
 - `mark_as_read` - Mark messages as read
@@ -75,15 +83,17 @@ Shared utilities extracted to `utils/`:
 - `receive_message` - Handle incoming message (supports `reply_to_id`)
 
 ### WebSocket Commands
+
 - `broadcast_message` - Broadcast to connected peers (supports `reply_to_id`)
-- `get_ws_port` - Get WebSocket server port
-- `connect_to_peer` - Connect to peer by IP
-- `get_network_status` - Get current network status
+- `connect_websocket` - Connect to the central server
+- `disconnect_websocket` - Gracefully disconnect
 
 ### TURN Server Commands
+
 - `get_turn_credentials` - Fetch TURN/STUN servers from Metered.ca API (falls back to Google STUN)
 
 ### Crypto Commands
+
 - `generate_keys` - Generate new X25519 keypair
 - `get_public_key` - Get own public key
 - `init_chat_session` - Initialize E2E session
@@ -96,6 +106,7 @@ Shared utilities extracted to `utils/`:
 - `ensure_chat_session` - Ensure session established
 
 ## Database Schema
+
 - `users` - User accounts
 - `chats` - Chat conversations
 - `chat_participants` - Chat membership
@@ -103,6 +114,7 @@ Shared utilities extracted to `utils/`:
 - `public_keys` - Stored public keys for E2E
 
 ## Security Rules
+
 - Validate all inputs in Rust commands (never trust frontend).
 - Prevent path traversal for any file path inputs.
 - Never log secrets, keys, decrypted messages, or identity private material.
@@ -111,6 +123,7 @@ Shared utilities extracted to `utils/`:
 - WebSocket messages must be validated and rate-limited when possible.
 
 ## Conventions
+
 - Do NOT invent APIs, commands, types, or file paths.
 - Always follow existing patterns (commands/ modules).
 - If touching Rust commands, update the corresponding frontend service wrapper.

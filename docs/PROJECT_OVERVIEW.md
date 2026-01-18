@@ -3,6 +3,7 @@
 A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React (TypeScript frontend).
 
 ## Tech Stack
+
 - **Frontend**: React 18 + TypeScript + Tailwind CSS
 - **Backend**: Tauri 2.0 (Rust)
 - **Build Tool**: Vite
@@ -17,6 +18,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 ## Target Features (WhatsApp Parity)
 
 ### UI Components
+
 - [x] Three-panel layout (sidebar, chat list, chat window)
 - [x] Contact/Chat list with search
 - [x] Chat bubbles (sent/received styling with CSS tails)
@@ -34,6 +36,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] Message reply (WhatsApp-style hover dropdown menu)
 
 ### Core Features
+
 - [x] Phone number onboarding (phone as unique Pulse ID)
 - [x] 1-on-1 messaging (UI ready, backend commands ready)
 - [x] Group chats (UI ready)
@@ -45,6 +48,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [x] Profile settings modal
 
 ### Backend (Tauri/Rust)
+
 - [x] SQLite database initialization
 - [x] Database schema (users, chats, chat_participants, messages)
 - [x] Seed data for testing
@@ -58,6 +62,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [ ] File upload/storage
 
 ## Design Reference
+
 - Primary green: #00A884 (WhatsApp teal)
 - Dark mode background: #111B21
 - Dark mode panels: #202C33
@@ -68,6 +73,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - Custom titlebar with native window controls (decorations: false)
 
 ## Current Status
+
 - Full UI prototype complete with WhatsApp-like styling
 - SQLite backend with seed data
 - All major components implemented
@@ -112,11 +118,6 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
   - Window dragging via startDragging() API
   - Double-click to maximize
   - Tauri 2.0 capabilities/permissions configured in capabilities/default.json
-- **LAN networking support**
-  - WebSocket server binds to 0.0.0.0:9001 for LAN access
-  - Network modal shows local IP address
-  - Manual peer connection by IP address
-  - Uses `local-ip-address` crate for IP detection
 - **UI polish**
   - JetBrains Mono font for IDs, IPs, phone numbers, unread counts
   - Attachment menu closes on outside click
@@ -171,6 +172,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 ## Next Steps
 
 ### Security Enhancements
+
 - [x] Implement tracing for robust logging (tracing + tracing-subscriber)
 - [ ] Add rate limiting to WebSocket server
 - [ ] Implement forward secrecy (Signal protocol ratcheting)
@@ -178,15 +180,16 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - [ ] Add zeroize for keys in memory
 
 ### Features
+
 - [x] **Auto-updater** - Tauri plugin for seamless updates via GitHub Releases
 - [ ] Voice message recording
 - [ ] File/image upload and preview
 - [x] Store encryption keys persistently
-- [ ] Auto network discovery for LAN peers (mDNS/broadcast)
 - [ ] Edit contact details (name, phone) from chat header or contact list
 - [x] Save profile changes (name, about) in ProfileModal
 
 ## Notes
+
 - Offline-first architecture (local SQLite)
 - Networking/cloud sync to be added later
 - WebSocket binds to 0.0.0.0:9001 (accessible on LAN)
@@ -194,6 +197,7 @@ A WhatsApp-like desktop chat application built with Tauri (Rust backend) + React
 - Custom titlebar requires capabilities/default.json for window permissions in Tauri 2.0
 
 ## Production Deployment
+
 - **Server**: Hosted on Railway at `wss://pulse-production-5948.up.railway.app`
 - **Client**: Distributed via GitHub Releases (https://github.com/ayushdedhia/pulse/releases)
 - TLS/WSS support enabled via `native-tls` feature in tokio-tungstenite

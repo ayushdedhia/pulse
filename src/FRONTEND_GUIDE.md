@@ -33,8 +33,7 @@ src/
 │   ├── modals/
 │   │   ├── NewChatModal.tsx    # Create new chat
 │   │   ├── ProfileModal.tsx    # User profile editor
-│   │   ├── OnboardingModal.tsx # Phone number onboarding for new users
-│   │   └── NetworkModal.tsx    # LAN network settings
+│   │   └── OnboardingModal.tsx # Phone number onboarding for new users
 │   └── ui/
 │       └── CountrySelector.tsx # Country code picker with search
 ├── services/                   # API abstraction layer

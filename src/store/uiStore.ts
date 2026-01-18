@@ -8,7 +8,6 @@ interface UIStore {
   showNewChat: boolean;
   showProfile: boolean;
   showContactInfo: boolean;
-  showNetwork: boolean;
   searchQuery: string;
 
   toggleTheme: () => void;
@@ -17,7 +16,6 @@ interface UIStore {
   setShowNewChat: (show: boolean) => void;
   setShowProfile: (show: boolean) => void;
   setShowContactInfo: (show: boolean) => void;
-  setShowNetwork: (show: boolean) => void;
   setSearchQuery: (query: string) => void;
 }
 
@@ -29,7 +27,6 @@ export const useUIStore = create<UIStore>()(
       showNewChat: false,
       showProfile: false,
       showContactInfo: false,
-      showNetwork: false,
       searchQuery: "",
 
       toggleTheme: () =>
@@ -45,13 +42,11 @@ export const useUIStore = create<UIStore>()(
 
       setShowContactInfo: (show) => set({ showContactInfo: show }),
 
-      setShowNetwork: (show) => set({ showNetwork: show }),
-
       setSearchQuery: (query) => set({ searchQuery: query }),
     }),
     {
       name: "pulse-ui-storage",
       partialize: (state) => ({ theme: state.theme }),
-    }
-  )
+    },
+  ),
 );

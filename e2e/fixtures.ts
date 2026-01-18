@@ -12,8 +12,15 @@ export const test = base.extend<{
         core: {
           invoke: async (cmd: string, args: any) => {
             console.log(`Mock invoke: ${cmd}`, args);
-            if (cmd === "get_network_status") return { connected: true, type: "wifi" };
+            if (cmd === "get_server_url") return "ws://localhost:9001";
             if (cmd === "get_ws_auth_token") return "mock-token";
+            if (cmd === "init_identity")
+              return {
+                user_id: "mock_user",
+                public_key_hex: "mock_pubkey",
+                is_new: true,
+              };
+            if (cmd === "generate_keys") return "mock_pubkey";
             return null;
           },
         },
@@ -30,7 +37,7 @@ export { expect } from "@playwright/test";
 
 // Page object helpers
 export class OnboardingPage {
-  constructor(private page: Page) { }
+  constructor(private page: Page) {}
 
   async isVisible() {
     return this.page
@@ -71,7 +78,7 @@ export class OnboardingPage {
   }
 
   get digitCounter() {
-    return this.page.locator('p.tabular-nums');
+    return this.page.locator("p.tabular-nums");
   }
 
   async openCountrySelector() {
@@ -129,10 +136,13 @@ export class OnboardingPage {
 }
 
 export class ChatListPage {
-  constructor(private page: Page) { }
+  constructor(private page: Page) {}
 
   async isVisible() {
-    return this.page.locator('text="Chats"').isVisible().catch(() => false);
+    return this.page
+      .locator('text="Chats"')
+      .isVisible()
+      .catch(() => false);
   }
 
   async waitForLoad() {
@@ -149,7 +159,7 @@ export class ChatListPage {
 }
 
 export class ChatPage {
-  constructor(private page: Page) { }
+  constructor(private page: Page) {}
 
   async isVisible() {
     const input = this.page.locator('[data-testid="message-input"]');
@@ -181,8 +191,16 @@ export class ChatPage {
   }
 
   async isReplyBarVisible() {
-    return this.page.locator('text="Replying to"').isVisible().catch(() => false) ||
-      this.page.locator('[class*="animate-slide-down"]').isVisible().catch(() => false);
+    return (
+      this.page
+        .locator('text="Replying to"')
+        .isVisible()
+        .catch(() => false) ||
+      this.page
+        .locator('[class*="animate-slide-down"]')
+        .isVisible()
+        .catch(() => false)
+    );
   }
 
   async closeReplyBar() {

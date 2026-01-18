@@ -3,7 +3,6 @@ import { useCallback, useState } from "react";
 
 import { useChatStore } from "../../store/chatStore";
 import { useUIStore } from "../../store/uiStore";
-import { NetworkModal } from "../modals/NetworkModal";
 import { NewChatModal } from "../modals/NewChatModal";
 import { ProfileModal } from "../modals/ProfileModal";
 import { ContactInfoPanel } from "../panels/ContactInfoPanel";
@@ -20,33 +19,38 @@ export function AppLayout() {
   const activeChat = useChatStore((state) => state.activeChat);
   const showNewChat = useUIStore((state) => state.showNewChat);
   const showProfile = useUIStore((state) => state.showProfile);
-  const showNetwork = useUIStore((state) => state.showNetwork);
   const showContactInfo = useUIStore((state) => state.showContactInfo);
   const [chatListWidth, setChatListWidth] = useState(DEFAULT_CHAT_LIST_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
 
-    const startX = e.clientX;
-    const startWidth = chatListWidth;
+      const startX = e.clientX;
+      const startWidth = chatListWidth;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const delta = e.clientX - startX;
-      const newWidth = Math.min(MAX_CHAT_LIST_WIDTH, Math.max(MIN_CHAT_LIST_WIDTH, startWidth + delta));
-      setChatListWidth(newWidth);
-    };
+      const handleMouseMove = (e: MouseEvent) => {
+        const delta = e.clientX - startX;
+        const newWidth = Math.min(
+          MAX_CHAT_LIST_WIDTH,
+          Math.max(MIN_CHAT_LIST_WIDTH, startWidth + delta),
+        );
+        setChatListWidth(newWidth);
+      };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
+      const handleMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  }, [chatListWidth]);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [chatListWidth],
+  );
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-primary)] transition-theme">
@@ -77,12 +81,10 @@ export function AppLayout() {
         </div>
 
         {/* Main Chat Area */}
-        <div className={`flex-1 flex flex-col ${isResizing ? "select-none" : ""}`}>
-          {activeChat ? (
-            <ChatWindow />
-          ) : (
-            <EmptyState />
-          )}
+        <div
+          className={`flex-1 flex flex-col ${isResizing ? "select-none" : ""}`}
+        >
+          {activeChat ? <ChatWindow /> : <EmptyState />}
         </div>
 
         {/* Contact Info Panel (slides in from right) */}
@@ -92,7 +94,6 @@ export function AppLayout() {
       {/* Modals */}
       {showNewChat && <NewChatModal />}
       {showProfile && <ProfileModal />}
-      {showNetwork && <NetworkModal />}
     </div>
   );
 }

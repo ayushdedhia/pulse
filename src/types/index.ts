@@ -59,26 +59,18 @@ export type MessageStatus = "sent" | "delivered" | "read";
 
 export type Theme = "dark" | "light";
 
-export interface PeerInfo {
-  ip: string;
-  port: number;
-  connected: boolean;
-}
-
-export interface NetworkStatus {
-  is_server: boolean;
-  local_ip: string | null;
-  port: number;
-  connected_peers: PeerInfo[];
-}
-
 export interface IceServer {
   urls: string;
   username?: string;
   credential?: string;
 }
 
-export type CallStatus = "idle" | "outgoing" | "incoming" | "connecting" | "connected";
+export type CallStatus =
+  | "idle"
+  | "outgoing"
+  | "incoming"
+  | "connecting"
+  | "connected";
 
 export interface CallInviteMessage {
   type: "call_invite";

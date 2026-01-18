@@ -8,7 +8,13 @@ import { useChatStore } from "../store/chatStore";
 const getMessageActions = () => useMessageStore.getState();
 
 export interface WsMessage {
-  type: "message" | "typing" | "presence" | "read_receipt" | "connect" | "error";
+  type:
+    | "message"
+    | "typing"
+    | "presence"
+    | "read_receipt"
+    | "connect"
+    | "error";
   id?: string;
   chat_id?: string;
   sender_id?: string;
@@ -34,8 +40,8 @@ export function useWebSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const port = await websocketService.getWsPort();
-      const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      const url = await websocketService.getServerUrl();
+      const ws = new WebSocket(url);
 
       ws.onopen = () => {
         console.log("WebSocket connected");
@@ -47,7 +53,7 @@ export function useWebSocket() {
             JSON.stringify({
               type: "connect",
               user_id: currentUser.id,
-            })
+            }),
           );
         }
       };
@@ -81,59 +87,58 @@ export function useWebSocket() {
     }
   }, [currentUser]);
 
-  const handleMessage = useCallback(
-    (message: WsMessage) => {
-      switch (message.type) {
-        case "message":
-          // Reload messages for the chat
-          if (message.chat_id) {
-            getMessageActions().loadMessages(message.chat_id);
-          }
-          break;
+  const handleMessage = useCallback((message: WsMessage) => {
+    switch (message.type) {
+      case "message":
+        // Reload messages for the chat
+        if (message.chat_id) {
+          getMessageActions().loadMessages(message.chat_id);
+        }
+        break;
 
-        case "typing":
-          if (message.chat_id && message.user_id) {
-            setTypingUsers((prev) => {
-              const chatUsers = prev[message.chat_id!] || [];
-              if (message.is_typing) {
-                if (!chatUsers.includes(message.user_id!)) {
-                  return {
-                    ...prev,
-                    [message.chat_id!]: [...chatUsers, message.user_id!],
-                  };
-                }
-              } else {
+      case "typing":
+        if (message.chat_id && message.user_id) {
+          setTypingUsers((prev) => {
+            const chatUsers = prev[message.chat_id!] || [];
+            if (message.is_typing) {
+              if (!chatUsers.includes(message.user_id!)) {
                 return {
                   ...prev,
-                  [message.chat_id!]: chatUsers.filter(
-                    (id) => id !== message.user_id
-                  ),
+                  [message.chat_id!]: [...chatUsers, message.user_id!],
                 };
               }
-              return prev;
-            });
-          }
-          break;
+            } else {
+              return {
+                ...prev,
+                [message.chat_id!]: chatUsers.filter(
+                  (id) => id !== message.user_id,
+                ),
+              };
+            }
+            return prev;
+          });
+        }
+        break;
 
-        case "presence":
-          if (message.user_id && message.is_online !== undefined) {
-            console.log("Presence update:", message);
-            useChatStore.getState().updateUserStatus(message.user_id, message.is_online);
-          }
-          break;
+      case "presence":
+        if (message.user_id && message.is_online !== undefined) {
+          console.log("Presence update:", message);
+          useChatStore
+            .getState()
+            .updateUserStatus(message.user_id, message.is_online);
+        }
+        break;
 
-        case "read_receipt":
-          // Could update message status in store
-          console.log("Read receipt:", message);
-          break;
+      case "read_receipt":
+        // Could update message status in store
+        console.log("Read receipt:", message);
+        break;
 
-        case "error":
-          console.error("WebSocket error message:", message.message);
-          break;
-      }
-    },
-    []
-  );
+      case "error":
+        console.error("WebSocket error message:", message.message);
+        break;
+    }
+  }, []);
 
   const sendMessage = useCallback(
     (type: string, data: Record<string, unknown>) => {
@@ -141,7 +146,7 @@ export function useWebSocket() {
         wsRef.current.send(JSON.stringify({ type, ...data }));
       }
     },
-    []
+    [],
   );
 
   const sendTyping = useCallback(
@@ -152,7 +157,7 @@ export function useWebSocket() {
         is_typing: isTyping,
       });
     },
-    [currentUser, sendMessage]
+    [currentUser, sendMessage],
   );
 
   const disconnect = useCallback(() => {
